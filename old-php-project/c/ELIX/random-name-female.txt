@@ -1,0 +1,54 @@
+ Abigail , Ada , Adelaide , Adrienne , Agatha , Agnes , Aileen , Aimee , Alanna , Alarice , Alda 
+ , Alexandra , Alice , Alina , Alison , Alma , Amanda , Amaryllis , Amber , Anastasia , Andrea 
+ , Angela , Angelica , Anita , Ann , Annabelle , Annette , Anthea , April , Ariana , Arleen 
+ , Astrid , Audrey 
+ , Barbara , Beata , Beatrice , Becky , Belinda , Belle , Bernadette , Bernice , Bertha , Bertina , Beryl 
+ , Bess , Beth , Bettina , Beverly , Bianca , Blair , Blanche , Blythe , Bonnie , Brenda 
+ , Briana , Brigid , Brittany , Brooke 
+ , Caitlin , Camille , Carissa , Carla , Carly , Carmen , Carrie , Cherise , Catherine , Charity , Charlene 
+ , Chelsea , Cheryl , Chloe , Christine , Claire , Clarissa , Coral , Courtney , Cynthia 
+ , Danielle , Daphne , Darlene , Davida , Dawn , Deborah , Deirdre , Delilah , Denise , Diana , Dominica 
+ , Dominique , Donna , Dora , Doris , Drucilla 
+ , Echo , Eda , Edana , Edeline , Edith , Edlyn , Edna , Edwina , Effie , Eileen , Elaine 
+ , Eleanor , Elena , Elga , Elise , Eliza , Elizabeth , Ella , Ellen , Eloise , Elsie 
+ , Elvira , Emeline , Emily , Emma , Erika , Ernestine , Esmeralda , Erin , Estelle , Estra 
+ , Ethel , Eudora , Eugenia , Eunice , Eva 
+ , Faith , Fannie , Farrah , Fawn , Faye , Fedora , Felicia , Fern , Fiona , Flora , Frances 
+ , Freda , Frederica 
+ , Gabrielle , Gale , Gaye , Geneva , Genevieve , Georgette , Georgia , Geraldine , Germaine , Gertrude , Gilda 
+ , Gillian , Gladys , Gloria , Glynnis , Grace , Guinevere , Gwen , Gwynne 
+ , Haley , Hanna , Harriet , Harley , Harmony , Hattie , Hazel , Heather , Helen , Henrietta , Hetty 
+ , Hilda , Holly , Honey , Hope , Hortense 
+ , Ida , Imogen , Ingrid , Irene , Iris , Ivy , Ivory 
+ , Jacqueline , Jade , Jane , Janet , Janice , Jasmine , Jeanne , Jemima , Jennifer , Jessica , Jewel 
+ , Jillian , Joan , Jocelyn , Joanna , Josephine , Joy , Judith , Juliana , Julie , June , Justine 
+ , Kacey , Kara , Karen , Kate , Katherine , Kay , Kayla , Keely , Kelsey , Kendra , Kerri 
+ , Kirstyn , Kyla 
+ , Lacey , Lane , Lara , Larina , Larissa , Laura , Laverna , Leah , Leanne , Lee , Leslie 
+ , Leticia , Lilah , Linda , Linette , Lindsay , Lisa , Livia , Lizzie , Lois , Lola 
+ , Lorelei , Lorena , Lorraine , Louisa , Lucia , Lucinda , Lulu , Luna , Lynn 
+ , Mabel , Madeline , Madge , Magda , Maggie , Maia , Maisie , Mandy , Marcia , Margaret , Margot 
+ , Maria , Marnia , Marissa , Marta , Martina , Mary , Matilda , Maude , Maura , Maureen 
+ , Mavis , Maxine , Megan , Melanie , Melinda , Melissa , Melody , Melvina , Mercy , Meris 
+ , Merle , Michelle , Mildred , Millicent , Minerva , Mirabelle , Miranda , Miriam , Misty , Moira 
+ , Molly , Mona , Monica , Mora , Morgan , Muriel , Myra , Myrtle 
+ , Nadia , Nancy , Naomi , Natalie , Nathania , Nell , Nerissa , Nerita , Nessa , Nicolette , Nina 
+ , Noelle , Nola , Nora , Norma , Nydia 
+ , Octavia , Odette , Olga , Olivia , Opal , Ophelia , Oprah , Oriel , Orlantha , Orva 
+ , Page , Pamela , Pandora , Pansy , Patience , Patricia , Patty , Paula , Pearl , Peggy , Penelope 
+ , Philippa , Philomena , Phoebe , Phyllis , Polly , Primavera , Primrose , Priscilla , Prudence , Prunella 
+ , Rachel , Ramona , Rebecca , Regina , Renata , Rhea , Rhoda , Rita , Roberta , Robin , Rosa 
+ , Rose , Rosalind , Rosanne , Rosemary , Rowena , Roxanne , Ruby , Ruth 
+ , Sabrina , Sacha , Sadie , Salena , Sally , Salome , Samantha , Sandra , Sapphire , Sarah , Scarlett 
+ , Selene , Serena , Shana , Shannon , Sharon , Sheila , Shirley , Sibley , Sibyl , Silver 
+ , Simona , Sirena 
+ , Tabitha , Talia , Tamara , Tammy , Tanya , Tara , Tasha , Tatum , Teresa , Tess , Thalia 
+ , Thea , Thelma , Theodora , Thomasina , Thora , Tiffany , Tilda , Timothea , Tina , Tracy 
+ , Trina , Trista , Trixie , Tuesday , Tyne 
+ , Udele , Ula , Ulrica , Ulva , Una , Unity , Ursa , Ursula 
+ , Valda , Valerie , Vanessa , Vania , Veleda , Vera , Verda , Veronica , Victoria , Violet , Virginia 
+ , Vita , Vivian 
+ , Wanda , Wenda , Whitney , Wilda , Willa , Willette , Willow , Wilona , Winifred , Winona , Wynne 
+ , Yolanda , Yvette , Yvonne 
+ , Zea , Zelda , Zelene , Zera , Zoe 
+,Bermuda, Vermuda,Egaz,Egas,,Godinha,Anes,Nuna,Ramira,Rua,Sancha

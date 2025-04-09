@@ -1,0 +1,39 @@
+/*
+===use case===
+'widget-box' is container
+    if entire container is linkable add  'widget-box-linked'
+    identify widget icon with 'widget-icon'
+*/
+.card-box ,
+.widget-card,
+.widget-box {
+  padding: 20px;
+  border: 1px solid rgba(54, 64, 74, 0.08);
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  -moz-border-radius: 5px;
+  background-clip: padding-box;
+  margin-bottom: 20px;
+}
+.card-box {
+  background-color: #fff;
+}
+.widget-box-linked:hover { background-color: rgba(54, 64, 74, 0.08);}
+.widget-box-linked>a {
+    display: inline-block;
+    margin-bottom: 0;
+    font-weight: normal;
+    text-align: center;
+    vertical-align: middle;
+    touch-action: manipulation;
+    cursor: pointer;
+    background-image: none;
+    border: 1px solid transparent;
+    padding: 5px 9px;
+    border-radius: 0;
+    user-select: none;
+        width: 100%;
+}
+.widget-box-linked:hover a{
+        text-decoration: none;
+}

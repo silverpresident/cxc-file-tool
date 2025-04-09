@@ -1,0 +1,105 @@
+@-webkit-keyframes pulse_element_animation 
+{       
+0% {-webkit-transform: scale(0); opacity: 0;}
+8% {-webkit-transform: scale(0); opacity: 0;}
+15% {-webkit-transform: scale(0.1); opacity: 1;}
+30% {-webkit-transform: scale(0.5); opacity: 1;}
+100% {opacity: 0; -webkit-transform: scale(1);}
+}
+
+@-moz-keyframes pulse_element_animation 
+{       
+0% {-moz-transform: scale(0); opacity: 0;}
+8% {-moz-transform: scale(0); opacity: 0;}
+15% {-moz-transform: scale(0.1); opacity: 1;}
+30% {-moz-transform: scale(0.5); opacity: 1;}
+100% {opacity: 0; -moz-transform: scale(1);}
+}
+.pulse-element 
+{
+-webkit-animation: pulse_element_animation 2s linear infinite;
+-moz-animation: pulse_element_animation 2s linear infinite; 
+border-image: initial;
+}
+  
+  
+@keyframes heartbeat_animation {
+    0% { transform: scale(1); }
+    30% { transform: scale(1); }
+    40% { transform: scale(1.08); }
+    50% { transform: scale(1); }
+    70% { transform: scale(1.05); }
+    80% { transform: scale(1); }
+    100% { transform: scale(1); }
+}
+
+.heartbeat {
+    animation-name: heartbeat_animation;
+    animation-duration: 5000ms;
+    transform-origin:70% 70%;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+}
+
+.pulsate{
+    -webkit-animation-name: pulsate_animation;
+    -webkit-animation-duration: 3s;
+    -webkit-animation-timing-function: ease-in-out;
+    -webkit-animation-iteration-count: infinite
+}
+@-webkit-keyframes pulsate_animation {
+    0% { opacity: 0.0}
+    20% { opacity: .40 }
+    50% { opacity: 1.0}
+    60% { opacity: .80}
+    80% { opacity: .40}
+    100% {  opacity: 0.0}
+}
+
+
+/*PULSE*/
+.pulse {
+  box-shadow: 0 0 0 rgba(204,169,44, 0.4);
+  animation: pulse_animation 2s infinite;
+}
+.pulse:hover {animation: none;}
+
+@-webkit-keyframes pulse_animation {
+  0% {
+    -webkit-box-shadow: 0 0 0 0 rgba(204,169,44, 0.4);
+  }
+  70% {
+      -webkit-box-shadow: 0 0 0 10px rgba(204,169,44, 0);
+  }
+  100% {
+      -webkit-box-shadow: 0 0 0 0 rgba(204,169,44, 0);
+  }
+}
+@keyframes pulse_animation {
+  0% {
+    -moz-box-shadow: 0 0 0 0 rgba(204,169,44, 0.4);
+    box-shadow: 0 0 0 0 rgba(204,169,44, 0.4);
+  }
+  70% {
+      -moz-box-shadow: 0 0 0 10px rgba(204,169,44, 0);
+      box-shadow: 0 0 0 10px rgba(204,169,44, 0);
+  }
+  100% {
+      -moz-box-shadow: 0 0 0 0 rgba(204,169,44, 0);
+      box-shadow: 0 0 0 0 rgba(204,169,44, 0);
+  }
+}
+
+/*SPINNER*/
+.spinning {
+    animation: spin_animation 1s infinite linear;
+}
+@keyframes spin_animation {
+    from { transform: scale(1) rotate(0deg); }
+    to { transform: scale(1) rotate(360deg); }
+}
+
+@-webkit-keyframes spin_animation {
+    from { -webkit-transform: rotate(0deg); }
+    to { -webkit-transform: rotate(360deg); }
+}
