@@ -1,0 +1,87 @@
+# Shane CXC File Tool Project Requirements
+
+## Project Overview
+- C# .NET MVC application using latest LTS version
+- Project name: "Shane's CXC File Tool"
+- Theme colors: you should choose
+- No database, data is store in CSV files in the Data folder
+- Authentication: very simple cusomt syste
+
+## Project Description
+
+This project was previously implemented in PHP and is being migrated to C# .Net.
+look at the "old-php-project" to see the previous PHP project which is being re-written.
+Look at the picture in the docs folder.  The actual appearance of the poject can be imporved alot.
+Create the c# solution is a separate folder "cxc-tool-asp"
+
+### Log in, Users, User Authentication
+A user has a simple display name, a password, a foldername, isadmin field 
+A admin user can add or edit other users and delete all files in the system, add candidate
+A user should be able to login, upload file 
+This is store as a CSV file in the Data2 folder. THis is in a separate folder to prevent the admin from deleting it since the admin can delete files in the Data folder
+When a user is added a unique folder name (2 letters and maybe a number) is assigned by the system.
+
+### Candidate
+A Candidate is an entity for which the system stores Name, cxc_registration_no, class, subjects
+THis is stored as a CSV file in the Data folder with the name in the pattern {CURRENT YEAR} + "cand.csv"
+This list is used to populate a datalist attach to selection in the file naming section
+This list can be edited by  the admin
+An admin can upload a CSV list from which relevant fields are extracted and stored.
+An admin can dalete the entire list.
+An admin can download the CSV list.
+
+### Subject
+A Subject is an entity for which the system stores Name, cxc_subject_code, Level (CSEC, CAPE)
+THis is stored as a CSV file in the Data folder with the name  "subjects.csv"
+This list is used to populate a select list in the file naming section
+This list can be edited by  the admin
+An admin can upload a CSV list from which relevant fields are extracted and stored.
+An admin can dalete the entire list.
+An admin can download the CSV list.
+
+### Files
+The Admin should hav an interface which allows him to view all files with in the Data folder.
+These files can be downloaded or deleted.
+
+
+### File Upload
+- All users upload a series of files.
+- Each uploaded file can be tagged as a COver Page, MarkScheme or Project.
+- The rename button allows the user to select a subject, centre number (default: 100111) and a candidate code (4 digit)
+- a candidate code is the last 4 digits of the cxc_registration_no, 
+- after files are uploading you can select a set of files and ask the system to rename them.
+- after they are renamed you can download them individually, download all, or download all the files with the same  cxc_subject_code and even delete them
+- The files a user uploads are stored in a subfolder in the Data folder. The name of the subfolder is the  FOlderName provided in the userProfile
+
+#### File nameing convetion 
+The files for a single candate are named as {cxc_registration_no(10 digit)}{(cxc_subject_code}{document-identifier}{file-extension}
+The document-identifier is 
+- "CS" for coversheet
+- "MS" for markscheme
+- "-1" for all other files (the SBA projects) each file is named sequencially starting at 1, there is a hyphpen
+ 
+## Documentation
+- Generate documentation in the docs folder.
+- Create an api documentation, user manual and technical guide.
+
+## Technical Requirements
+
+### Project Structure
+1. Create VS Code workspace file and Visual Studio solution file
+2. Simgel project solution (no top-level statements):
+3. Use appsettings.json (not web.config)
+4. include login page
+6. Use caching and partials where possible
+7. Implement strong error handling. Catch and log all errors. Ensure request fail gracefully.
+8. Highly responsive and efficient loading
+
+
+### Mobile Responsiveness
+Most users will use a mobile device. Ensure that the design is responsive.
+Use bootstrap philosophy and ensure the interface is mobile first
+
+### Libraries and Frameworks
+- Bootstrap
+- jQuery
+- Markdown parser
+- Bootstrap icon library

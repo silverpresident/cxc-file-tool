@@ -1,0 +1,175 @@
+# Project Tech Stack and Rules - CXC File Tools
+
+## Tech Stack
+- **Framework**: .NET 9.0, ASP.NET Core MVC
+- **Language**: C# 12
+- **Database**: CSV files
+- **Authentication**: Simple custom
+- **Frontend**: 
+  - Bootstrap 5.3+
+  - jQuery 3.7+
+  - Bootstrap Icons
+- **Development Tools**:
+  - Visual Studio 2022+
+  - Visual Studio Code with C# Dev Kit
+  - Azure CLI/PowerShell
+  - Terraform for IaC
+
+## Coding Standards
+### Documentation
+- Read the docs/AiKnowledgeBase.md for contextual details about the solution.
+- Read the README.md if you need a high level understanding of the solution.
+- Use XML comments for public APIs
+- Maintain README.md
+- Document configuration settings
+- Include setup instructions
+- Document deployment process
+- Update AiKnowledgeBase.md with learnings
+- Add any incomplete or placeholder tasks to the docs/TODO.md file
+
+
+### C# Guidelines
+- Follow Microsoft's C# coding conventions
+- Use C# 12 features appropriately
+- Prefer pattern matching over type checking
+- Use records for DTOs and immutable data
+- Use init-only properties where appropriate
+- Use file-scoped namespaces
+- Utilize nullable reference types
+- Implement IAsyncDisposable for async cleanup
+- Use the Result Pattern when applicable
+
+### Asynchronous Programming
+- Use async/await for all I/O operations
+- Avoid async void except for event handlers
+- Use CancellationToken for cancellable operations
+- Implement proper exception handling in async methods
+- Use Task.WhenAll for parallel operations
+- Avoid blocking calls in async methods
+
+### Security
+- Use HTTPS everywhere
+- Implement proper CORS policies
+- Use anti-forgery tokens for forms
+- Sanitize all user inputs
+- Use parameterized queries
+- Implement proper role-based authorization
+- Store secrets in Azure Key Vault
+- Use managed identities where possible
+
+### Database
+- Data is store in csv files
+
+### Error Handling
+- Implement global exception handling
+- Use custom exception types
+- Log exceptions with context
+- Return appropriate HTTP status codes
+- Implement retry policies for transient failures
+- Use problem details for API errors
+- Use the Result Pattern
+
+### Logging
+- Use ILogger<T> in all services, workers, controllers
+- Include correlation IDs
+- Log appropriate detail levels
+- Structure log messages
+- Include relevant context
+- Log security events
+- Implement proper log rotation
+
+### Testing
+- Write unit tests for business logic
+- Implement integration tests for APIs
+- Use xUnit for testing framework
+- Mock external dependencies
+- Use test data builders
+- Implement CI/CD pipelines
+- Test both success and failure paths
+
+### Performance
+- Implement response caching where appropriate
+- Use async/await properly
+- Implement proper DB indexing
+- Use compression for responses
+- Optimize database queries
+- Implement proper connection pooling
+- Use CDN for static assets
+
+### UI/UX
+- Follow Bootstrap best practices
+- Implement responsive design
+- Use proper semantic HTML
+- Follow WCAG accessibility guidelines
+- Implement proper form validation
+- Use proper error messages
+- Implement loading states
+- Use proper toast notifications
+
+### Design
+Design a modern, elegant, and highly intuitive UI/UX for a social quiz and chat app.
+The design should be:
+- Visually refined and consistent, with a clean layout and ample white space.
+- User-centric, ensuring an effortless and smooth flow through the main features.
+- Responsive across devices, with a minimal yet stylish aesthetic.
+- Aligned with contemporary design trends like neumorphism, glassmorphism, or soft shadows (optional based on your style).
+- Focused on accessibility and clear call-to-actions.
+- Prioritize hierarchy, typography, and visual storytelling. Think Apple-level polish with the usability of Notion or Linear.
+- Use a soft, neutral color palette with accent colors for key actions.
+
+### Code Organization
+- Follow Clean Architecture principles
+- Use proper dependency injection
+- Implement repository pattern
+- Use service layer pattern
+- Organize by feature when possible
+- Keep controllers thin
+- Use proper view models
+- Implement proper validation
+
+### Source Control
+- Use meaningful commit messages
+- Follow GitFlow branching strategy
+- Use pull requests for changes
+- Include proper .gitignore
+- Protect main branch
+- Use semantic versioning
+
+### Configuration
+- Use strongly-typed configuration
+- Use proper environment variables
+- Store secrets in Key Vault
+- Use proper configuration sections
+- Implement configuration validation
+- Use proper defaults
+
+### Deployment
+- Use Infrastructure as Code (Terraform)
+- Implement proper CI/CD
+- Use proper environment separation
+- Implement blue-green deployment
+- Use proper monitoring
+- Implement proper backup strategy
+
+### Monitoring
+- Implement Application Insights
+- Monitor performance metrics
+- Set up proper alerting
+- Monitor error rates
+- Track user behavior
+- Monitor resource usage
+
+### File Encoding
+- Use UTF-8 without BOM
+- Ensure consistent line endings (LF)
+- Remove trailing whitespace
+- Use proper file extensions
+
+### Comments and Documentation
+- DO NOT REMOVE EXISTING COMMENTS
+- Document public APIs
+- Explain complex logic
+- Document assumptions
+- Include usage examples
+- Document configuration options
+

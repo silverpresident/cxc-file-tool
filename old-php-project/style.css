@@ -1,0 +1,84 @@
+body {
+    font-size: 16pt;
+}
+input, select, button {
+    font-size: 16pt;
+}
+.box
+				{
+					font-size: 1.25rem; /* 20 */
+					background-color: #c8dadf;
+					position: relative;
+					padding: 100px 20px;
+				}
+				.box.has-advanced-upload
+				{
+					outline: 2px dashed #92b0b3;
+					outline-offset: -10px;
+
+					-webkit-transition: outline-offset .15s ease-in-out, background-color .15s linear;
+					transition: outline-offset .15s ease-in-out, background-color .15s linear;
+				}
+				.box.is-dragover
+				{
+					outline-offset: -20px;
+					outline-color: #c8dadf;
+					background-color: #fff;
+				}
+.box__dragndrop,
+.box__uploading,
+.box__success,
+.box__error {
+  display: none;
+}
+.box__error {
+  color:red;
+}
+.box.has-advanced-upload {
+  outline: 2px dashed black;
+  outline-offset: -10px;
+}
+.box.has-advanced-upload .box__dragndrop {
+  display: inline;
+}
+.box.is-dragover {
+  background-color: grey;
+}
+.box.is-uploading .box__input {
+  visibility: none;
+}
+.box.is-uploading .box__uploading {
+  display: block;
+}
+.is-uploading{
+    background-color: purple;
+}
+.box__button {
+  display: none;
+}
+.no-js .box__button {
+  display: block;
+}
+[name="cand_num"] {
+    font-size: 24pt;
+    color: blue;
+    border: 1px solid blue;
+}
+[name="cand_num"]:invalid{
+    color: white;
+    background-color: red;
+    border: 2px solid orange;
+}
+.box_form{
+  padding: 12px;
+  background-color: antiquewhite;
+}
+.btn {
+  padding: 8px;
+  margin-top: 24px;
+}
+.box_form [type="submit"]{
+  border: 1px solid blueviolet;
+  background-color: blue;
+  color: antiquewhite;
+}
