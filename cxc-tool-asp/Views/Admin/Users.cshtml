@@ -1,0 +1,51 @@
+@model List<cxc_tool_asp.Models.User>
+@{
+    ViewData["Title"] = "Manage Users";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<p>
+    <!-- TODO: Link to Add User action -->
+    <a asp-action="AddUser" class="btn btn-primary"><i class="bi bi-plus-circle-fill me-1"></i> Add New User</a>
+</p>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-warning" role="alert">
+        No users found. Add the first user.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-hover table-responsive">
+        <thead>
+            <tr>
+                <th>Display Name</th>
+                <th>Folder Name</th>
+                <th>Is Admin?</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in Model)
+            {
+                <tr>
+                    <td>@Html.DisplayFor(modelItem => user.DisplayName)</td>
+                    <td><code>@Html.DisplayFor(modelItem => user.FolderName)</code></td>
+                    <td>@(user.IsAdmin ? "Yes" : "No")</td>
+                    <td>
+                        <!-- TODO: Link to Edit User action -->
+                        <a asp-action="EditUser" asp-route-id="@user.Id" class="btn btn-sm btn-outline-secondary me-1"><i class="bi bi-pencil-fill"></i> Edit</a>
+
+                        <!-- TODO: Implement Delete User action using POST -->
+                        <form asp-action="DeleteUser" asp-route-id="@user.Id" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete user @user.DisplayName? This cannot be undone.');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash-fill"></i> Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

@@ -1,0 +1,76 @@
+:root {
+  --cxc-primary: #0d6efd; /* Bootstrap Blue */
+  --cxc-secondary: #6c757d; /* Bootstrap Gray */
+  --cxc-accent: #20c997; /* Bootstrap Teal */
+  --cxc-light: #f8f9fa; /* Bootstrap Light */
+  --cxc-dark: #212529; /* Bootstrap Dark */
+}
+
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* Update focus shadow to use accent color */
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem var(--cxc-accent);
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+  background-color: var(--cxc-light); /* Use light background */
+  color: var(--cxc-dark); /* Default text color */
+}
+
+/* Style primary buttons with accent color */
+.btn-primary {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--cxc-accent);
+    --bs-btn-border-color: var(--cxc-accent);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #1aa07a; /* Darker teal */
+    --bs-btn-hover-border-color: #189370; /* Even darker teal */
+    --bs-btn-focus-shadow-rgb: 49, 132, 253; /* Keep blueish shadow for contrast or change? Using accent's RGB */
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #189370;
+    --bs-btn-active-border-color: #168666;
+    --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: var(--cxc-accent);
+    --bs-btn-disabled-border-color: var(--cxc-accent);
+}
+
+/* Adjust navbar link color for dark background */
+.navbar-dark .nav-link.text-dark {
+    color: rgba(255, 255, 255, 0.75) !important; /* Lighter color for dark navbar */
+}
+.navbar-dark .nav-link.text-dark:hover,
+.navbar-dark .nav-link.text-dark:focus {
+    color: #fff !important; /* White on hover/focus */
+}
+
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+  text-align: start;
+}
+
+/* Footer styling */
+.footer {
+  background-color: #e9ecef; /* Light gray background */
+  padding: 1rem 0;
+}

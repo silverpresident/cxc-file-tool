@@ -1,0 +1,82 @@
+/*my generic  bootstrap helper*/
+.list-group-item.active .btn-link {color: white;}
+.list-condensed li{padding-top: 4px; padding-bottom: 4px;}
+.list-group-item-highlight {
+    background-color: #ddd;
+    border-left: 4px solid;
+}
+.list-group-condensed .list-group-item {
+    padding: 3px 10px
+}
+.form-group output{
+    padding-top: 5px;
+    margin-bottom: 5px;
+    font-weight:bold;
+    line-height: 20px;
+    display: block;
+}
+
+
+.form-condensed summary,
+.form-condensed legend{margin-bottom: 0;line-height: 30px;}
+.form-condensed legend + .form-group{ margin-top: 0;}
+.form-condensed .form-group{ margin-bottom: 2px;}
+.form-condensed label{margin-bottom: 0;}
+.form-condensed .form-control-static{margin-bottom: 0;}
+.form-condensed output{margin-bottom: 0;}
+.form-condensed .radio,.form-condensed  .checkbox {margin-top: 1px; margin-bottom: 1px;}
+.form-condensed .input-group-addon { padding: 6px;}
+
+/*.form-horizontal.form-condensed .form-group {margin-bottom: 4px;}*/
+.form-horizontal.form-condensed .form-control-static{padding-top: 4px;    padding-bottom: 6px;}
+
+@media (min-width: 768px){
+  .form-horizontal.form-condensed .control-label {
+    margin-bottom: 0;
+    padding-top: 7px;
+  }
+}
+
+
+@media (min-width: 768px){ .navbar-fixed-top { position: fixed; } }
+@media (max-width: 768px){ .navbar-fixed-top { position: static;} }
+
+.nav-list .divider {
+  *width: 100%;
+  height: 3px;
+  margin: ((1.428571429 / 2) - 1) 1px; 
+  *margin: -5px 0 5px;
+  overflow: hidden;
+  background-color: $sapSecondaryColor;
+  border-bottom: 1px solid white;
+}
+
+.list-group-item-header,
+.nav-header {
+  display: block;
+  padding: 3px 15px;
+  /*font-size: 11px;*/
+  font-weight: bold;
+  line-height: 1.428571429;
+  color: #999;
+  /*text-shadow: 0 1px 0 rgba(255,255,255,.5);*/
+  text-transform: uppercase;
+  border-bottom: 3px solid $sapSecondaryColor;
+}
+ /*Space them out when they follow another list item (link)*/
+.nav li + .nav-header {
+  margin-top: 9px;
+}
+
+
+.btn-round{border-radius: 17px;}
+.btn-rounded{border-radius: 8px;}
+.btn-lg.btn-round{ border-radius: 24px;}
+.btn-lg.btn-rounded{ border-radius: 12px;}
+.btn-sm.btn-round{border-radius: 14px;}
+.btn-sm.btn-rounded{border-radius: 7px;}
+.btn-xs.btn-round{border-radius: 11px;}
+.btn-xs.btn-rounded{border-radius: 5px;}
+.btn-sharp {border-radius:0;}
+.btn-outline {background: none;padding: 12px 22px;}
+.btn-padded {margin: 6px 12px;}

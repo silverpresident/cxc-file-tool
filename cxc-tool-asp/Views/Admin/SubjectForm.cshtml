@@ -1,0 +1,58 @@
+@model cxc_tool_asp.Models.Subject
+@using cxc_tool_asp.Models; // Required for SubjectLevel enum
+@{
+    // Determine if we are editing an existing subject
+    bool isEditMode = !string.IsNullOrEmpty(ViewContext.RouteData.Values["id"]?.ToString()); // Check if ID is in route data for edit
+    ViewData["Title"] = isEditMode ? "Edit Subject" : "Add New Subject";
+
+    // Prepare SelectList for SubjectLevel enum
+    var subjectLevels = Enum.GetValues(typeof(SubjectLevel))
+                           .Cast<SubjectLevel>()
+                           .Select(level => new SelectListItem
+                           {
+                               Value = level.ToString(),
+                               Text = level.ToString()
+                           });
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="@(isEditMode ? "EditSubject" : "AddSubject")" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+            <div class="mb-3">
+                <label asp-for="CxcSubjectCode" class="form-label"></label>
+                <input asp-for="CxcSubjectCode" class="form-control" pattern="\d{6}" title="Subject code must be 6 digits." readonly="@(isEditMode ? "readonly" : null)" />
+                <span asp-validation-for="CxcSubjectCode" class="text-danger"></span>
+                 @if(isEditMode) {
+                    <small class="form-text text-muted">Subject code cannot be changed.</small>
+                 }
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" required />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Level" class="form-label"></label>
+                <select asp-for="Level" class="form-select" asp-items="subjectLevels" required></select>
+                <span asp-validation-for="Level" class="text-danger"></span>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle-fill me-1"></i> @(isEditMode ? "Save Changes" : "Add Subject")</button>
+                <a asp-action="Subjects" class="btn btn-secondary"><i class="bi bi-x-circle me-1"></i> Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

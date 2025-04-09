@@ -1,0 +1,79 @@
+.print-only{display: none;}
+.padding-0 {padding-left: 0!important;padding-right: 0!important;}
+.label-as-badge {border-radius: 1em;}
+
+@each $color, $value in $sapColorMap {
+  .bg-#{$color} { background-color:$value;}
+  .bg-#{$color}:hover {background-color: grayscale($value); color:$value;}
+  .label-#{$color}  {background-color: $value; color:white;}
+  .btn-#{$color}  {background-color: $value; color:white;}
+  .border-#{$color}  {border-color: $value; }
+  .text-#{$color} {color:$value;}
+}
+.label-yellow  {color:black;}
+.btn-yellow  {color:black;}
+.label-white  {color:black;}
+.btn-white  {color:black;}
+.bg-white:hover  {background-color: rgba(54, 64, 74, 0.08)}
+
+@each $color, $value in $sapAltColorMap {
+  .text-alt-#{$color} {
+    color:$value !important;
+  }
+  .bg-alt-#{$color} {
+    background-color:$value !important;
+  }
+  .border-alt-#{$color}  {border-color: $value; }
+}
+
+.text-secondary {color: $sapSecondaryColor; }
+.border-secondary {border-color: $sapSecondaryColor; } 
+.btn-secondary {background-color: $sapSecondaryColor; color: white;}
+.bg-secondary {background-color: $sapSecondaryColor; color: white;}
+.label-secondary {background-color: $sapSecondaryColor; color:white;}
+.panel-secondary { border-color: $sapSecondaryColor;}
+.panel-secondary>.panel-heading {
+    color: #ffffff;
+    background-color: $sapSecondaryColor;
+    border-color: $sapSecondaryColor;
+}
+
+
+.bg-priority {background-color: #F00; color: white;}
+.bg-priority-0 {background-color: #CCC; color: white;}
+.bg-priority-1 {background-color: #0F0; color: white;}
+.bg-priority-2 {background-color: #008000; color: white;}
+.bg-priority-3 {background-color: #FF0; color: black;}
+.bg-priority-4 {background-color: #FA0; color: white;}
+.bg-priority-5 {background-color: #F00; color: white;}
+
+.avatar-small{
+    width:50px;
+    height:50px;
+}
+.avatar-medium{
+    width:75px;
+    height:75px;
+}
+.avatar-large{
+    width:120px;
+    height:120px;
+}
+
+
+a[href^="tel:"]:before {
+  content: "\260e";
+  margin-right: 0.5em;
+}
+
+.text-truncate {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.leaf {
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 18px;
+    border-top-left-radius: 18px;
+}

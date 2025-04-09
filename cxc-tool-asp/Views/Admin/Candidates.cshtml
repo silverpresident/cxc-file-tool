@@ -1,0 +1,73 @@
+@model List<cxc_tool_asp.Models.Candidate>
+@{
+    ViewData["Title"] = "Manage Candidates";
+    var currentYear = DateTime.Now.Year;
+}
+
+<h1>@ViewData["Title"] (@currentYear)</h1>
+
+<div class="mb-3 d-flex flex-wrap gap-2">
+    <!-- TODO: Link to Add Candidate action -->
+    <a asp-action="AddCandidate" class="btn btn-primary"><i class="bi bi-person-plus-fill me-1"></i> Add New Candidate</a>
+
+    <!-- TODO: Implement Upload Candidates action -->
+    <form asp-action="UploadCandidates" method="post" enctype="multipart/form-data" class="d-inline-block">
+        @Html.AntiForgeryToken()
+        <label for="candidateFile" class="btn btn-secondary">
+            <i class="bi bi-upload me-1"></i> Upload CSV List
+        </label>
+        <input type="file" id="candidateFile" name="candidateFile" class="d-none" accept=".csv" onchange="this.form.submit()" />
+    </form>
+
+    <!-- TODO: Link to Download Candidates action -->
+    <a asp-action="DownloadCandidates" class="btn btn-outline-success"><i class="bi bi-download me-1"></i> Download CSV List</a>
+
+    <!-- TODO: Implement Delete All Candidates action -->
+    <form asp-action="DeleteAllCandidates" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete ALL candidates for @currentYear? This cannot be undone.');">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-danger"><i class="bi bi-trash3-fill me-1"></i> Delete All Candidates (@currentYear)</button>
+    </form>
+</div>
+
+
+@if (!Model.Any())
+{
+    <div class="alert alert-warning" role="alert">
+        No candidates found for @currentYear. Add candidates manually or upload a CSV list.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-hover table-responsive">
+        <thead>
+            <tr>
+                <th>Registration No</th>
+                <th>Name</th>
+                <th>Class</th>
+                <th>Subjects</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var candidate in Model.OrderBy(c => c.Name))
+            {
+                <tr>
+                    <td><code>@Html.DisplayFor(modelItem => candidate.CxcRegistrationNo)</code></td>
+                    <td>@Html.DisplayFor(modelItem => candidate.Name)</td>
+                    <td>@Html.DisplayFor(modelItem => candidate.Class)</td>
+                    <td>@Html.DisplayFor(modelItem => candidate.Subjects)</td>
+                    <td>
+                        <!-- TODO: Link to Edit Candidate action -->
+                        <a asp-action="EditCandidate" asp-route-id="@candidate.CxcRegistrationNo" class="btn btn-sm btn-outline-secondary me-1"><i class="bi bi-pencil-fill"></i> Edit</a>
+
+                        <!-- TODO: Implement Delete Candidate action using POST -->
+                        <form asp-action="DeleteCandidate" asp-route-id="@candidate.CxcRegistrationNo" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete candidate @candidate.Name (@candidate.CxcRegistrationNo)?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash-fill"></i> Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

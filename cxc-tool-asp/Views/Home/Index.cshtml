@@ -1,0 +1,18 @@
+﻿@using System.Security.Claims
+@{
+    ViewData["Title"] = "Home Page";
+    var userName = User.Identity?.Name ?? "User";
+    var isAdmin = User.IsInRole("Admin");
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome, @userName!</h1>
+    <p class="lead">Use the navigation bar to manage files and settings.</p>
+
+    @if(isAdmin)
+    {
+        <div class="alert alert-info mt-4" role="alert">
+            <i class="bi bi-info-circle-fill me-2"></i>You are logged in as an Administrator. You have access to additional management features under the 'Admin' menu.
+        </div>
+    }
+</div>

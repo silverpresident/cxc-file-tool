@@ -1,0 +1,46 @@
+@model List<(string UserFolder, string FileName)>
+@{
+    ViewData["Title"] = "Manage All Files";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<p>This page lists all files currently stored in user folders within the <code>Data</code> directory.</p>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info" role="alert">
+        No files found in any user folders.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-hover table-responsive">
+        <thead>
+            <tr>
+                <th>User Folder</th>
+                <th>File Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var fileInfo in Model.OrderBy(f => f.UserFolder).ThenBy(f => f.FileName))
+            {
+                <tr>
+                    <td><code>@Html.DisplayFor(modelItem => fileInfo.UserFolder)</code></td>
+                    <td>@Html.DisplayFor(modelItem => fileInfo.FileName)</td>
+                    <td>
+                        <!-- TODO: Implement Download File action -->
+                        <a asp-action="DownloadFile" asp-route-userFolder="@fileInfo.UserFolder" asp-route-fileName="@fileInfo.FileName" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-download"></i> Download</a>
+
+                        <!-- TODO: Implement Delete File action using POST -->
+                        <form asp-action="DeleteFile" asp-route-userFolder="@fileInfo.UserFolder" asp-route-fileName="@fileInfo.FileName" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete file @fileInfo.FileName from folder @fileInfo.UserFolder?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash-fill"></i> Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

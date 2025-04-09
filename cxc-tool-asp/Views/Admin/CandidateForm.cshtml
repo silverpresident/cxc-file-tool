@@ -1,0 +1,56 @@
+@model cxc_tool_asp.Models.Candidate
+@{
+    // Determine if we are editing an existing candidate based on whether CxcRegistrationNo has a value
+    // (assuming it's empty only for the Add action initial load)
+    bool isEditMode = !string.IsNullOrEmpty(Model.CxcRegistrationNo);
+    ViewData["Title"] = isEditMode ? "Edit Candidate" : "Add New Candidate";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="@(isEditMode ? "EditCandidate" : "AddCandidate")" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+            <div class="mb-3">
+                <label asp-for="CxcRegistrationNo" class="form-label"></label>
+                <input asp-for="CxcRegistrationNo" class="form-control" pattern="\d{10}" title="Registration number must be 10 digits." readonly="@(isEditMode ? "readonly" : null)" />
+                <span asp-validation-for="CxcRegistrationNo" class="text-danger"></span>
+                 @if(isEditMode) {
+                    <small class="form-text text-muted">Registration number cannot be changed.</small>
+                 }
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" required />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Class" class="form-label"></label>
+                <input asp-for="Class" class="form-control" />
+                <span asp-validation-for="Class" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Subjects" class="form-label"></label>
+                <input asp-for="Subjects" class="form-control" placeholder="Comma-separated list (optional)" />
+                <span asp-validation-for="Subjects" class="text-danger"></span>
+            </div>
+
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle-fill me-1"></i> @(isEditMode ? "Save Changes" : "Add Candidate")</button>
+                <a asp-action="Candidates" class="btn btn-secondary"><i class="bi bi-x-circle me-1"></i> Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
