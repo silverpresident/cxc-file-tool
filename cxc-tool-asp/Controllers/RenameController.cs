@@ -11,27 +11,56 @@ using System.IO; // Required for MemoryStream, Path, FileStream
 using System.Linq; // Required for Linq methods
 using System.Threading.Tasks; // Required for Task
 using System.Collections.Generic; // Required for List
+using Microsoft.Extensions.Logging; // Added
+using System; // Added
+using System.IO.Compression; // Added for ZipArchive
 
-namespace cxc_tool_asp.Controllers; // Single namespace declaration
+namespace cxc_tool_asp.Controllers;
 
 [Authorize] // Requires login
 public class RenameController : Controller
 {
-    private readonly IFileService _fileService;
+    // Inject IStorageService instead of IFileService
+    private readonly IStorageService _storageService;
     private readonly ICandidateService _candidateService;
     private readonly ISubjectService _subjectService;
     private readonly ILogger<RenameController> _logger;
+    private readonly string _userDataRelativePath = "Data"; // Base relative path for user folders
 
     public RenameController(
-        IFileService fileService,
+        IStorageService storageService, // Updated constructor
         ICandidateService candidateService,
         ISubjectService subjectService,
         ILogger<RenameController> logger)
     {
-        _fileService = fileService;
+        _storageService = storageService; // Use injected IStorageService
         _candidateService = candidateService;
         _subjectService = subjectService;
         _logger = logger;
+    }
+
+     // Helper to construct the relative path for a user's file
+    private string GetUserFileRelativePath(string userFolderName, string fileName)
+    {
+        var sanitizedFolderName = Path.GetFileName(userFolderName);
+        var sanitizedFileName = Path.GetFileName(fileName);
+        if (string.IsNullOrWhiteSpace(sanitizedFolderName) || sanitizedFolderName.Contains("..") ||
+            string.IsNullOrWhiteSpace(sanitizedFileName) || sanitizedFileName.Contains(".."))
+        {
+            throw new ArgumentException("Invalid user folder name or file name.");
+        }
+        return Path.Combine(_userDataRelativePath, sanitizedFolderName, sanitizedFileName).Replace(Path.DirectorySeparatorChar, '/');
+    }
+
+     // Helper to construct the relative path for a user's folder
+    private string GetUserFolderRelativePath(string userFolderName)
+    {
+        var sanitizedFolderName = Path.GetFileName(userFolderName);
+        if (string.IsNullOrWhiteSpace(sanitizedFolderName) || sanitizedFolderName.Contains(".."))
+        {
+            throw new ArgumentException("Invalid user folder name.");
+        }
+        return Path.Combine(_userDataRelativePath, sanitizedFolderName).Replace(Path.DirectorySeparatorChar, '/');
     }
 
     // GET: /Rename/Index
@@ -44,7 +73,9 @@ public class RenameController : Controller
             return RedirectToAction("Login", "Account");
         }
 
-        var files = await _fileService.GetFilesAsync(userFolderName);
+        // Use IStorageService to list files
+        var relativeFolderPath = GetUserFolderRelativePath(userFolderName);
+        var files = await _storageService.ListFilesAsync(relativeFolderPath);
         var subjects = await _subjectService.GetAllSubjectsAsync();
         var candidates = await _candidateService.GetAllCandidatesAsync();
 
@@ -52,7 +83,7 @@ public class RenameController : Controller
         // Candidate data for datalist - Value is now 4-digit CandidateCode
         ViewBag.CandidatesData = candidates
             .OrderBy(c => c.Name)
-            .Select(c => new { Value = c.CandidateCode, Text = $"{c.Name} ({c.CxcRegistrationNo})" }) // Value is CandidateCode
+            .Select(c => new { Value = c.CandidateCode, Text = $"{c.Name} ({c.CxcRegistrationNo})" })
             .ToList();
 
         var processedFiles = new List<string>();
@@ -146,12 +177,17 @@ public class RenameController : Controller
         string fullRegistrationNo = centreNumber + candidateCode;
 
         // Determine document identifier
-        // For single file rename, "Project" always becomes "-1" unless logic is added later to check existing files
         string docIdentifier = (docType == "Project") ? "-1" : docType;
 
-        var newFileName = await _fileService.RenameFileAsync(userFolderName, selectedFile, fullRegistrationNo, subjectCode, docIdentifier);
+        // Use IStorageService to rename (MoveFile)
+        string sourceRelativePath = GetUserFileRelativePath(userFolderName, selectedFile);
+        string fileExtension = Path.GetExtension(selectedFile);
+        string newFileName = $"{fullRegistrationNo}{subjectCode}{docIdentifier}{fileExtension}";
+        string destinationRelativePath = GetUserFileRelativePath(userFolderName, newFileName);
 
-        if (newFileName != null)
+        bool success = await _storageService.MoveFileAsync(sourceRelativePath, destinationRelativePath);
+
+        if (success)
         {
             message = $"File '{selectedFile}' renamed to '{newFileName}' successfully.";
             _logger.LogInformation("User '{UserName}' renamed '{OriginalFile}' to '{NewFile}'.", User.Identity?.Name, selectedFile, newFileName);
@@ -160,8 +196,11 @@ public class RenameController : Controller
         }
         else
         {
-            message = $"Failed to rename '{selectedFile}'. Possible reasons: File not found, invalid parameters, or target name already exists.";
-            _logger.LogWarning("User '{UserName}' failed to rename '{OriginalFile}'.", User.Identity?.Name, selectedFile);
+            // Check if destination exists as a potential reason for failure
+            bool destExists = await _storageService.FileExistsAsync(destinationRelativePath);
+            message = $"Failed to rename '{selectedFile}'. Possible reasons: File not found, invalid parameters, or target name '{newFileName}' already exists.";
+            if(destExists) message = $"Failed to rename '{selectedFile}'. Target filename '{newFileName}' already exists."; // More specific message
+            _logger.LogWarning("User '{UserName}' failed to rename '{OriginalFile}'. Reason: {Reason}", User.Identity?.Name, selectedFile, destExists ? "Destination exists" : "Other");
             if (isAjax) return Json(new { success = false, message, oldFileName = selectedFile });
             TempData["RenameError"] = message;
         }
@@ -180,31 +219,28 @@ public class RenameController : Controller
              return NotFound("Invalid request parameters.");
          }
 
-         var filePath = _fileService.GetFilePath(userFolderName, fileName);
-         if (filePath == null || !System.IO.File.Exists(filePath))
+         // Use IStorageService to read
+         string relativePath = GetUserFileRelativePath(userFolderName, fileName);
+         var stream = await _storageService.ReadFileAsStreamAsync(relativePath);
+
+         if (stream == null)
          {
               _logger.LogWarning("User '{UserName}' attempted to view non-existent file '{FileName}'.", User.Identity?.Name, fileName);
              return NotFound($"File '{fileName}' not found.");
          }
 
-         var memoryStream = new MemoryStream();
-         await using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-         {
-             await stream.CopyToAsync(memoryStream);
-         }
-         memoryStream.Position = 0;
-
-         var contentType = MimeTypeMap.GetMimeType(Path.GetExtension(fileName)); // Use correct class
+         var contentType = MimeTypeMap.GetMimeType(Path.GetExtension(fileName));
 
          // Set Content-Disposition to inline
          var contentDisposition = new ContentDispositionHeaderValue("inline")
          {
-             FileName = fileName // Use the actual filename
+             FileName = fileName
          };
          Response.Headers.Append(HeaderNames.ContentDisposition, contentDisposition.ToString());
 
          _logger.LogInformation("User '{UserName}' viewed file inline '{FileName}'.", User.Identity?.Name, fileName);
-         return File(memoryStream, contentType);
+         // Return the stream directly; ASP.NET Core handles disposal for FileStreamResult from Stream
+         return File(stream, contentType);
      }
 
 
@@ -223,17 +259,21 @@ public class RenameController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var fileResult = await _fileService.GetFileDownloadAsync(userFolderName, fileName);
+        // Use IStorageService to read
+        string relativePath = GetUserFileRelativePath(userFolderName, fileName);
+        var stream = await _storageService.ReadFileAsStreamAsync(relativePath);
 
-        if (fileResult == null)
+        if (stream == null)
         {
             TempData["RenameError"] = $"File '{fileName}' not found or could not be prepared for download.";
             _logger.LogWarning("User '{UserName}' failed to download file '{FileName}'. File not found or error.", User.Identity?.Name, fileName);
             return RedirectToAction(nameof(Index));
         }
 
-         _logger.LogInformation("User '{UserName}' downloaded file '{FileName}'.", User.Identity?.Name, fileName);
-        return fileResult;
+        var contentType = MimeTypeMap.GetMimeType(Path.GetExtension(fileName));
+        _logger.LogInformation("User '{UserName}' downloaded file '{FileName}'.", User.Identity?.Name, fileName);
+        // Return stream with FileDownloadName
+        return File(stream, contentType, fileName);
     }
 
     // GET: /Rename/DownloadAllFiles
@@ -246,25 +286,47 @@ public class RenameController : Controller
             return Unauthorized("User folder information not found.");
         }
 
-        var files = await _fileService.GetFilesAsync(userFolderName);
+        var relativeFolderPath = GetUserFolderRelativePath(userFolderName);
+        var files = await _storageService.ListFilesAsync(relativeFolderPath);
         if (!files.Any())
         {
             TempData["RenameError"] = "No files found to download.";
             return RedirectToAction(nameof(Index));
         }
 
-        var zipFileName = $"{userFolderName}_all_files_{DateTime.Now:yyyyMMddHHmmss}";
-        var zipStream = await _fileService.CreateZipArchiveAsync(userFolderName, files, zipFileName);
-
-        if (zipStream == null)
+        var zipFileName = $"{userFolderName}_all_files_{DateTime.Now:yyyyMMddHHmmss}.zip";
+        var memoryStream = new MemoryStream();
+        try
         {
-            TempData["RenameError"] = "An error occurred while creating the zip file.";
-             _logger.LogError("Failed to create zip archive for user '{UserName}'.", User.Identity?.Name);
-            return RedirectToAction(nameof(Index));
+            using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+            {
+                foreach (var fileName in files)
+                {
+                    var relativePath = GetUserFileRelativePath(userFolderName, fileName);
+                    var fileStream = await _storageService.ReadFileAsStreamAsync(relativePath);
+                    if (fileStream != null)
+                    {
+                        var entry = archive.CreateEntry(fileName, CompressionLevel.Optimal);
+                        await using (var entryStream = entry.Open())
+                        {
+                            await fileStream.CopyToAsync(entryStream);
+                        }
+                        await fileStream.DisposeAsync();
+                    }
+                    else { _logger.LogWarning("File '{RelativePath}' not found during zip creation.", relativePath); }
+                }
+            }
+            memoryStream.Position = 0;
+            _logger.LogInformation("User '{UserName}' downloaded all files as '{ZipFileName}'.", User.Identity?.Name, zipFileName);
+            return File(memoryStream, "application/zip", zipFileName);
         }
-
-        _logger.LogInformation("User '{UserName}' downloaded all files as '{ZipFileName}.zip'.", User.Identity?.Name, zipFileName);
-        return File(zipStream, "application/zip", $"{zipFileName}.zip");
+        catch (Exception ex)
+        {
+             _logger.LogError(ex, "Error creating zip archive for user '{UserName}'.", User.Identity?.Name);
+             TempData["RenameError"] = "An error occurred while creating the zip file.";
+             await memoryStream.DisposeAsync(); // Dispose stream on error
+             return RedirectToAction(nameof(Index));
+        }
     }
 
     // GET: /Rename/DownloadFilesBySubject
@@ -276,16 +338,15 @@ public class RenameController : Controller
         {
             return Unauthorized("User folder information not found.");
         }
-         if (string.IsNullOrEmpty(subjectCode))
+         if (string.IsNullOrEmpty(subjectCode) || !Regex.IsMatch(subjectCode, @"^\d{8}$")) // Validate subject code
         {
-            TempData["RenameError"] = "Please select a subject to download files for.";
+            TempData["RenameError"] = "Invalid or missing subject code provided.";
             return RedirectToAction(nameof(Index));
         }
 
-        var allFiles = await _fileService.GetFilesAsync(userFolderName);
-        // Filter files based on the naming convention: {RegNo}{SubjectCode}{DocId}.ext
-        // We expect the 8-digit subject code right after the 10-digit registration number.
-        var filesToZip = allFiles.Where(f => f.Length > 18 && f.Substring(10, 8) == subjectCode).ToList(); // 10 digits for RegNo, 8 for SubjectCode
+        var relativeFolderPath = GetUserFolderRelativePath(userFolderName);
+        var allFiles = await _storageService.ListFilesAsync(relativeFolderPath);
+        var filesToZip = allFiles.Where(f => f.Length > 18 && f.Substring(10, 8) == subjectCode).ToList();
 
         if (!filesToZip.Any())
         {
@@ -294,19 +355,41 @@ public class RenameController : Controller
         }
 
         var subject = await _subjectService.GetSubjectByCodeAsync(subjectCode);
-        var subjectNamePart = subject?.Name.Replace(" ", "_") ?? subjectCode; // Use subject name for zip file if available
-        var zipFileName = $"{userFolderName}_{subjectNamePart}_{DateTime.Now:yyyyMMddHHmmss}";
-        var zipStream = await _fileService.CreateZipArchiveAsync(userFolderName, filesToZip, zipFileName);
+        var subjectNamePart = subject?.Name.Replace(" ", "_") ?? subjectCode;
+        var zipFileName = $"{userFolderName}_{subjectNamePart}_{DateTime.Now:yyyyMMddHHmmss}.zip";
+        var memoryStream = new MemoryStream();
 
-         if (zipStream == null)
+        try
         {
-            TempData["RenameError"] = "An error occurred while creating the zip file for the selected subject.";
-             _logger.LogError("Failed to create zip archive for user '{UserName}', subject '{SubjectCode}'.", User.Identity?.Name, subjectCode);
-            return RedirectToAction(nameof(Index));
+             using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+            {
+                foreach (var fileName in filesToZip)
+                {
+                    var relativePath = GetUserFileRelativePath(userFolderName, fileName);
+                    var fileStream = await _storageService.ReadFileAsStreamAsync(relativePath);
+                    if (fileStream != null)
+                    {
+                        var entry = archive.CreateEntry(fileName, CompressionLevel.Optimal);
+                        await using (var entryStream = entry.Open())
+                        {
+                            await fileStream.CopyToAsync(entryStream);
+                        }
+                        await fileStream.DisposeAsync();
+                    }
+                     else { _logger.LogWarning("File '{RelativePath}' not found during zip creation by subject.", relativePath); }
+                }
+            }
+            memoryStream.Position = 0;
+            _logger.LogInformation("User '{UserName}' downloaded files for subject '{SubjectCode}' as '{ZipFileName}'.", User.Identity?.Name, subjectCode, zipFileName);
+            return File(memoryStream, "application/zip", zipFileName);
         }
-
-        _logger.LogInformation("User '{UserName}' downloaded files for subject '{SubjectCode}' as '{ZipFileName}.zip'.", User.Identity?.Name, subjectCode, zipFileName);
-        return File(zipStream, "application/zip", $"{zipFileName}.zip");
+        catch (Exception ex)
+        {
+             _logger.LogError(ex, "Error creating zip archive for user '{UserName}', subject '{SubjectCode}'.", User.Identity?.Name, subjectCode);
+             TempData["RenameError"] = "An error occurred while creating the zip file for the selected subject.";
+             await memoryStream.DisposeAsync();
+             return RedirectToAction(nameof(Index));
+        }
     }
 
     // POST: /Rename/DeleteFile
@@ -331,7 +414,9 @@ public class RenameController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var success = await _fileService.DeleteFileAsync(userFolderName, fileName);
+        // Use IStorageService to delete
+        string relativePath = GetUserFileRelativePath(userFolderName, fileName);
+        var success = await _storageService.DeleteFileAsync(relativePath);
 
         if(success)
         {
@@ -350,5 +435,4 @@ public class RenameController : Controller
          // For non-AJAX, redirect back to Index
          return RedirectToAction(nameof(Index));
     }
-
 }

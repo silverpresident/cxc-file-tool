@@ -2,30 +2,59 @@ using cxc_tool_asp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims; // Required for User.FindFirstValue
-using System.Collections.Generic; // Required for List
-using System.Threading.Tasks; // Required for Task
-using Microsoft.AspNetCore.Http; // Required for IFormFile
-using System.IO; // Required for Path
-using System.Linq; // Required for Linq methods like Any()
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using System.IO;
+using System.Linq;
+using Microsoft.Extensions.Logging; // Added
+using System; // Added
 
 namespace cxc_tool_asp.Controllers;
 
 [Authorize] // Requires login
 public class UploadController : Controller
 {
-    private readonly IFileService _fileService;
+    // Inject IStorageService instead of IFileService
+    private readonly IStorageService _storageService;
     private readonly ILogger<UploadController> _logger;
+    private readonly string _userDataRelativePath = "Data"; // Base relative path for user folders
 
     // Configuration for file validation
     private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
     private static readonly string[] AllowedExtensions = { ".pdf", ".docx", ".jpg", ".jpeg", ".png" };
 
 
-    public UploadController(IFileService fileService, ILogger<UploadController> logger)
+    public UploadController(IStorageService storageService, ILogger<UploadController> logger) // Updated constructor
     {
-        _fileService = fileService;
+        _storageService = storageService; // Use injected IStorageService
         _logger = logger;
     }
+
+    // Helper to construct the relative path for a user's file
+    private string GetUserFileRelativePath(string userFolderName, string fileName)
+    {
+        var sanitizedFolderName = Path.GetFileName(userFolderName);
+        var sanitizedFileName = Path.GetFileName(fileName);
+        if (string.IsNullOrWhiteSpace(sanitizedFolderName) || sanitizedFolderName.Contains("..") ||
+            string.IsNullOrWhiteSpace(sanitizedFileName) || sanitizedFileName.Contains(".."))
+        {
+            throw new ArgumentException("Invalid user folder name or file name.");
+        }
+        return Path.Combine(_userDataRelativePath, sanitizedFolderName, sanitizedFileName).Replace(Path.DirectorySeparatorChar, '/');
+    }
+
+     // Helper to construct the relative path for a user's folder
+    private string GetUserFolderRelativePath(string userFolderName)
+    {
+        var sanitizedFolderName = Path.GetFileName(userFolderName);
+        if (string.IsNullOrWhiteSpace(sanitizedFolderName) || sanitizedFolderName.Contains(".."))
+        {
+            throw new ArgumentException("Invalid user folder name.");
+        }
+        return Path.Combine(_userDataRelativePath, sanitizedFolderName).Replace(Path.DirectorySeparatorChar, '/');
+    }
+
 
     // GET: /Upload/Index
     public async Task<IActionResult> Index()
@@ -37,7 +66,10 @@ public class UploadController : Controller
             return RedirectToAction("Login", "Account");
         }
 
-        var files = await _fileService.GetFilesAsync(userFolderName);
+        // Get list of files currently in the user's folder using IStorageService
+        var relativeFolderPath = GetUserFolderRelativePath(userFolderName);
+        var files = await _storageService.ListFilesAsync(relativeFolderPath);
+
         ViewBag.UserFiles = files;
         _logger.LogInformation("User '{UserName}' accessed Upload page. Found {FileCount} files.", User.Identity?.Name, files.Count);
 
@@ -47,20 +79,15 @@ public class UploadController : Controller
     // POST: /Upload/UploadFile (Handles single or multiple files)
     [HttpPost]
     [ValidateAntiForgeryToken]
-    // Adjust RequestSizeLimit based on expected total size of multiple files if needed
-    // [RequestSizeLimit(MaxFileSize * 5 + 1024)] // Example: Allow up to 5 files of max size + overhead
-    public async Task<IActionResult> UploadFile(List<IFormFile> files) // Changed parameter to List<IFormFile>
+    public async Task<IActionResult> UploadFile(List<IFormFile> files)
     {
         bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
         var userFolderName = User.FindFirstValue("FolderName");
-
-        // Return structure for AJAX response when handling multiple files
         var ajaxResults = new List<object>();
         int successCount = 0;
         int errorCount = 0;
         var errorMessages = new List<string>();
         var successMessages = new List<string>();
-
 
         if (string.IsNullOrEmpty(userFolderName))
         {
@@ -84,9 +111,10 @@ public class UploadController : Controller
             if (file == null || file.Length == 0)
             {
                 errorCount++;
-                errorMessages.Add("An empty file reference was received.");
-                ajaxResults.Add(new { success = false, fileName = "N/A", message = "Empty file reference." });
-                continue; // Skip to the next file
+                string msg = "An empty file reference was received.";
+                errorMessages.Add(msg);
+                ajaxResults.Add(new { success = false, fileName = "N/A", message = msg });
+                continue;
             }
 
             // --- File Validation ---
@@ -109,13 +137,16 @@ public class UploadController : Controller
                 errorCount++;
                 errorMessages.Add(validationError);
                 ajaxResults.Add(new { success = false, fileName = file.FileName, message = validationError });
-                continue; // Skip to the next file
+                continue;
             }
             // --- End File Validation ---
 
-            var savedFileName = await _fileService.SaveFileAsync(userFolderName, file);
+            // Use IStorageService to save
+            string savedFileName = Path.GetFileName(file.FileName); // Use original name for now
+            string relativePath = GetUserFileRelativePath(userFolderName, savedFileName);
+            bool success = await _storageService.SaveFileAsync(relativePath, file);
 
-            if (savedFileName != null)
+            if (success)
             {
                 successCount++;
                 string message = $"File '{savedFileName}' uploaded successfully.";
@@ -133,7 +164,6 @@ public class UploadController : Controller
             }
         } // End foreach loop
 
-        // Set TempData for non-AJAX requests or summary for AJAX
         if (!isAjax)
         {
             if (successCount > 0) TempData["UploadSuccess"] = $"{successCount} file(s) uploaded successfully.";
@@ -142,11 +172,9 @@ public class UploadController : Controller
         }
         else
         {
-            // For AJAX, return a summary and detailed results
             bool overallSuccess = errorCount == 0;
             string summaryMessage = $"{successCount} uploaded, {errorCount} failed.";
             if (errorCount > 0) summaryMessage += $" First error: {errorMessages.FirstOrDefault()}";
-
             return Json(new { success = overallSuccess, message = summaryMessage, results = ajaxResults });
         }
     }
@@ -158,35 +186,39 @@ public class UploadController : Controller
     {
         bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
         var userFolderName = User.FindFirstValue("FolderName");
+        string message;
+
         if (string.IsNullOrEmpty(userFolderName))
         {
-             return isAjax ? Json(new { success = false, message = "User folder information not found." }) : Unauthorized("User folder information not found.");
+             message = "User folder information not found.";
+             return isAjax ? Json(new { success = false, message }) : Unauthorized(message);
         }
          if (string.IsNullOrEmpty(fileName))
         {
-            string message = "Invalid file name provided for deletion.";
+            message = "Invalid file name provided for deletion.";
             if(isAjax) return Json(new { success = false, message });
             TempData["UploadError"] = message;
             return RedirectToAction(nameof(Index));
         }
 
-        var success = await _fileService.DeleteFileAsync(userFolderName, fileName);
+        // Use IStorageService to delete
+        string relativePath = GetUserFileRelativePath(userFolderName, fileName);
+        var success = await _storageService.DeleteFileAsync(relativePath);
 
         if(success)
         {
-            string message = $"File '{fileName}' deleted successfully.";
+            message = $"File '{fileName}' deleted successfully.";
             _logger.LogInformation("User '{UserName}' deleted uploaded file '{FileName}'.", User.Identity?.Name, fileName);
             if(isAjax) return Json(new { success = true, message });
             TempData["UploadSuccess"] = message;
         }
         else
         {
-            string message = $"An error occurred while deleting file '{fileName}'.";
+            message = $"An error occurred while deleting file '{fileName}'.";
             _logger.LogError("User '{UserName}' failed to delete uploaded file '{FileName}'.", User.Identity?.Name, fileName);
              if(isAjax) return Json(new { success = false, message });
             TempData["UploadError"] = message;
         }
          return RedirectToAction(nameof(Index));
     }
-
 }
