@@ -7,6 +7,14 @@ namespace cxc_tool_asp.Models;
 /// </summary>
 public record Candidate
 {
+    // Properties reordered to match desired CSV output: Class, Name, Exam, CxcRegistrationNo, Subjects
+
+    /// <summary>
+    /// The class or form the candidate belongs to (optional).
+    /// </summary>
+    [StringLength(50)]
+    public string? Class { get; init; }
+
     /// <summary>
     /// The full name of the candidate.
     /// </summary>
@@ -15,18 +23,19 @@ public record Candidate
     public required string Name { get; init; }
 
     /// <summary>
+    /// The exam the candidate is registered for (e.g., CSEC, CAPE) (optional).
+    /// Added based on feedback.
+    /// </summary>
+    [StringLength(50)]
+    public string? Exam { get; init; }
+
+    /// <summary>
     /// The candidate's unique 10-digit CXC registration number.
     /// This is the primary identifier.
     /// </summary>
     [Required]
     [RegularExpression(@"^\d{10}$", ErrorMessage = "Registration number must be 10 digits.")]
     public required string CxcRegistrationNo { get; init; }
-
-    /// <summary>
-    /// The class or form the candidate belongs to (optional).
-    /// </summary>
-    [StringLength(50)]
-    public string? Class { get; init; }
 
     /// <summary>
     /// A comma-separated list of subjects the candidate is registered for (optional).

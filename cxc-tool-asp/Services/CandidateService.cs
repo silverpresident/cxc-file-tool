@@ -259,11 +259,24 @@ public class CandidateService : ICandidateService
     {
         public CandidateImportMap()
         {
-            // Map by common header names (case-insensitive due to PrepareHeaderForMatch)
-            Map(m => m.Name).Name("name", "candidatename", "fullname");
-            Map(m => m.CxcRegistrationNo).Name("cxcregistrationno", "registrationno", "regno", "candidateid");
-            Map(m => m.Class).Name("class", "form").Optional(); // Make optional fields explicitly optional
-            Map(m => m.Subjects).Name("subjects", "subjectlist").Optional();
+            // Define mapping in the desired CSV column order
+            // Use index for explicit order and Name for header variations (case-insensitive due to PrepareHeaderForMatch)
+
+            // Index 0: Class
+            Map(m => m.Class).Index(0).Name("class", "form").Optional();
+
+            // Index 1: Name
+            Map(m => m.Name).Index(1).Name("name", "candidatename", "fullname", "partyname"); // Added partyname
+
+            // Index 2: Exam (New optional field)
+            Map(m => m.Exam).Index(2).Name("exam", "examination").Optional();
+
+            // Index 3: CxcRegistrationNo
+            Map(m => m.CxcRegistrationNo).Index(3).Name("cxcregistrationno", "registrationno", "regno", "candidateid", "current_cxc_candidate_no", "cxc_candidate_no"); // Added alternatives
+
+            // Index 4: Subjects
+            Map(m => m.Subjects).Index(4).Name("subjects", "subjectlist").Optional();
+
         }
     }
 }

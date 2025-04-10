@@ -5,8 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering; // Required for SelectList
 using System.Security.Claims;
 using System.Text.RegularExpressions; // Required for Regex
+using Microsoft.Net.Http.Headers; // Required for ContentDispositionHeaderValue
+using MimeTypes; // Correct namespace for MimeTypeMap
+using System.IO; // Required for MemoryStream, Path, FileStream
+using System.Linq; // Required for Linq methods
+using System.Threading.Tasks; // Required for Task
+using System.Collections.Generic; // Required for List
 
-namespace cxc_tool_asp.Controllers;
+namespace cxc_tool_asp.Controllers; // Single namespace declaration
 
 [Authorize] // Requires login
 public class RenameController : Controller
@@ -38,24 +44,21 @@ public class RenameController : Controller
             return RedirectToAction("Login", "Account");
         }
 
-        // Get data needed for the view
         var files = await _fileService.GetFilesAsync(userFolderName);
         var subjects = await _subjectService.GetAllSubjectsAsync();
-        var candidates = await _candidateService.GetAllCandidatesAsync(); // For datalist
+        var candidates = await _candidateService.GetAllCandidatesAsync();
 
-        // Prepare data for dropdowns/datalists
         ViewBag.SubjectsList = new SelectList(subjects.OrderBy(s => s.Name), "CxcSubjectCode", "Name");
-        // Candidate data for datalist (value will be RegNo, text could be Name + RegNo)
+        // Candidate data for datalist - Value is now 4-digit CandidateCode
         ViewBag.CandidatesData = candidates
             .OrderBy(c => c.Name)
-            .Select(c => new { Value = c.CxcRegistrationNo, Text = $"{c.Name} ({c.CxcRegistrationNo})" })
+            .Select(c => new { Value = c.CandidateCode, Text = $"{c.Name} ({c.CxcRegistrationNo})" }) // Value is CandidateCode
             .ToList();
 
-        // Categorize files into processed and unprocessed
         var processedFiles = new List<string>();
         var unprocessedFiles = new List<string>();
-        // Regex to match the naming convention: 10 digits RegNo, 8 digits SubjectCode, (CS or MS or -Number), dot, extension
-        var processedFileRegex = new Regex(@"^\d{10}\d{8}(CS|MS|-\d+)\..+$"); // Updated subject code length to 8
+        // Regex matches 10-digit RegNo + 8-digit SubjectCode + Identifier + Extension
+        var processedFileRegex = new Regex(@"^\d{10}\d{8}(CS|MS|-\d+)\..+$");
 
         foreach (var file in files)
         {
@@ -77,94 +80,136 @@ public class RenameController : Controller
         return View();
     }
 
-    // POST: /Rename/RenameFiles
+    // POST: /Rename/RenameFile (Handles single file)
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RenameFiles(List<string> selectedFiles, string subjectCode, string registrationNo, string docType, string centreNumber = "100111") // CentreNumber might not be needed for filename? Keeping it based on requirements text.
+    public async Task<IActionResult> RenameFile(string selectedFile, string subjectCode, string candidateCode, string docType, string centreNumber = "100111")
     {
+        bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
         var userFolderName = User.FindFirstValue("FolderName");
+        string message;
+
         if (string.IsNullOrEmpty(userFolderName))
         {
-            return Unauthorized("User folder information not found.");
+            message = "User folder information not found.";
+            _logger.LogWarning("User '{UserName}' attempted to rename file without FolderName claim.", User.Identity?.Name);
+            return isAjax ? Json(new { success = false, message }) : Unauthorized(message);
         }
 
-        if (selectedFiles == null || !selectedFiles.Any())
+        if (string.IsNullOrEmpty(selectedFile))
         {
-            TempData["RenameError"] = "Please select at least one file to rename.";
+            message = "Please select a file to rename.";
+            if (isAjax) return Json(new { success = false, message });
+            TempData["RenameError"] = message;
             return RedirectToAction(nameof(Index));
         }
 
-        if (string.IsNullOrEmpty(subjectCode) || string.IsNullOrEmpty(registrationNo) || string.IsNullOrEmpty(docType))
+        if (string.IsNullOrEmpty(subjectCode) || string.IsNullOrEmpty(candidateCode) || string.IsNullOrEmpty(docType) || string.IsNullOrEmpty(centreNumber))
         {
-             TempData["RenameError"] = "Please provide all renaming parameters (Subject, Candidate, Document Type).";
+             message = "Please provide all renaming parameters (File, Subject, Centre, Candidate Code, Document Type).";
+             if (isAjax) return Json(new { success = false, message });
+             TempData["RenameError"] = message;
              return RedirectToAction(nameof(Index));
         }
 
-        // Validate registration number format
-        if (!System.Text.RegularExpressions.Regex.IsMatch(registrationNo, @"^\d{10}$"))
+        // Validate input formats
+        if (!Regex.IsMatch(centreNumber, @"^\d{6}$"))
         {
-             TempData["RenameError"] = "Invalid Candidate Registration Number format (must be 10 digits).";
+             message = "Invalid Centre Number format (must be 6 digits).";
+             if (isAjax) return Json(new { success = false, message });
+             TempData["RenameError"] = message;
              return RedirectToAction(nameof(Index));
         }
-         // Validate subject code format (fetch from service to be sure?) - For now, assume valid if selected
-         // Validate docType
+        if (!Regex.IsMatch(candidateCode, @"^\d{4}$")) // Validate 4-digit candidate code
+        {
+             message = "Invalid Candidate Code format (must be 4 digits).";
+             if (isAjax) return Json(new { success = false, message });
+             TempData["RenameError"] = message;
+             return RedirectToAction(nameof(Index));
+        }
+         if (!Regex.IsMatch(subjectCode, @"^\d{8}$")) // Check 8-digit subject code
+        {
+             message = "Invalid Subject Code format (must be 8 digits).";
+             if (isAjax) return Json(new { success = false, message });
+             TempData["RenameError"] = message;
+             return RedirectToAction(nameof(Index));
+        }
          if (docType != "CS" && docType != "MS" && docType != "Project")
          {
-              TempData["RenameError"] = "Invalid Document Type specified.";
+              message = "Invalid Document Type specified.";
+              if (isAjax) return Json(new { success = false, message });
+              TempData["RenameError"] = message;
               return RedirectToAction(nameof(Index));
          }
 
+        // Construct the full 10-digit registration number
+        string fullRegistrationNo = centreNumber + candidateCode;
 
-        int successCount = 0;
-        int failCount = 0;
-        List<string> errorMessages = new();
-        int projectFileCounter = 1; // Counter for project files (-1, -2, ...)
+        // Determine document identifier
+        // For single file rename, "Project" always becomes "-1" unless logic is added later to check existing files
+        string docIdentifier = (docType == "Project") ? "-1" : docType;
 
-        // Sort files to ensure consistent numbering for projects if multiple are selected
-        selectedFiles.Sort();
+        var newFileName = await _fileService.RenameFileAsync(userFolderName, selectedFile, fullRegistrationNo, subjectCode, docIdentifier);
 
-        foreach (var originalFileName in selectedFiles)
+        if (newFileName != null)
         {
-            string docIdentifier;
-            if (docType == "Project")
-            {
-                docIdentifier = $"-{projectFileCounter++}";
-            }
-            else
-            {
-                docIdentifier = docType; // "CS" or "MS"
-            }
-
-            var newFileName = await _fileService.RenameFileAsync(userFolderName, originalFileName, registrationNo, subjectCode, docIdentifier);
-
-            if (newFileName != null)
-            {
-                successCount++;
-                _logger.LogInformation("User '{UserName}' renamed '{OriginalFile}' to '{NewFile}'.", User.Identity?.Name, originalFileName, newFileName);
-            }
-            else
-            {
-                failCount++;
-                errorMessages.Add($"Failed to rename '{originalFileName}'. Possible reasons: File not found, invalid parameters, or target name already exists.");
-                 _logger.LogWarning("User '{UserName}' failed to rename '{OriginalFile}'.", User.Identity?.Name, originalFileName);
-            }
+            message = $"File '{selectedFile}' renamed to '{newFileName}' successfully.";
+            _logger.LogInformation("User '{UserName}' renamed '{OriginalFile}' to '{NewFile}'.", User.Identity?.Name, selectedFile, newFileName);
+            if (isAjax) return Json(new { success = true, message, oldFileName = selectedFile, newFileName });
+            TempData["RenameSuccess"] = message;
+        }
+        else
+        {
+            message = $"Failed to rename '{selectedFile}'. Possible reasons: File not found, invalid parameters, or target name already exists.";
+            _logger.LogWarning("User '{UserName}' failed to rename '{OriginalFile}'.", User.Identity?.Name, selectedFile);
+            if (isAjax) return Json(new { success = false, message, oldFileName = selectedFile });
+            TempData["RenameError"] = message;
         }
 
-        if (successCount > 0)
-        {
-            TempData["RenameSuccess"] = $"{successCount} file(s) renamed successfully.";
-        }
-        if (failCount > 0)
-        {
-            // Combine errors, potentially truncating if too many
-            TempData["RenameError"] = $"{failCount} file(s) failed to rename. Errors: {string.Join(" ", errorMessages.Take(3))}{(errorMessages.Count > 3 ? "..." : "")}";
-        }
-
+        // For non-AJAX, redirect back to Index
         return RedirectToAction(nameof(Index));
     }
 
+     // GET: /Rename/GetFileInline (New action for viewing)
+     [HttpGet]
+     public async Task<IActionResult> GetFileInline(string fileName)
+     {
+         var userFolderName = User.FindFirstValue("FolderName");
+         if (string.IsNullOrEmpty(userFolderName) || string.IsNullOrEmpty(fileName))
+         {
+             return NotFound("Invalid request parameters.");
+         }
+
+         var filePath = _fileService.GetFilePath(userFolderName, fileName);
+         if (filePath == null || !System.IO.File.Exists(filePath))
+         {
+              _logger.LogWarning("User '{UserName}' attempted to view non-existent file '{FileName}'.", User.Identity?.Name, fileName);
+             return NotFound($"File '{fileName}' not found.");
+         }
+
+         var memoryStream = new MemoryStream();
+         await using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+         {
+             await stream.CopyToAsync(memoryStream);
+         }
+         memoryStream.Position = 0;
+
+         var contentType = MimeTypeMap.GetMimeType(Path.GetExtension(fileName)); // Use correct class
+
+         // Set Content-Disposition to inline
+         var contentDisposition = new ContentDispositionHeaderValue("inline")
+         {
+             FileName = fileName // Use the actual filename
+         };
+         Response.Headers.Append(HeaderNames.ContentDisposition, contentDisposition.ToString());
+
+         _logger.LogInformation("User '{UserName}' viewed file inline '{FileName}'.", User.Identity?.Name, fileName);
+         return File(memoryStream, contentType);
+     }
+
 
     // GET: /Rename/DownloadFile
+    [HttpGet]
     public async Task<IActionResult> DownloadFile(string fileName)
     {
         var userFolderName = User.FindFirstValue("FolderName");
@@ -192,6 +237,7 @@ public class RenameController : Controller
     }
 
     // GET: /Rename/DownloadAllFiles
+    [HttpGet]
     public async Task<IActionResult> DownloadAllFiles()
     {
         var userFolderName = User.FindFirstValue("FolderName");
@@ -222,6 +268,7 @@ public class RenameController : Controller
     }
 
     // GET: /Rename/DownloadFilesBySubject
+    [HttpGet]
     public async Task<IActionResult> DownloadFilesBySubject(string subjectCode)
     {
          var userFolderName = User.FindFirstValue("FolderName");
@@ -265,32 +312,42 @@ public class RenameController : Controller
     // POST: /Rename/DeleteFile
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteFile(string fileName) // Renamed from DeleteRenamedFile for consistency
+    public async Task<IActionResult> DeleteFile(string fileName)
     {
+        bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
         var userFolderName = User.FindFirstValue("FolderName");
+        string message;
+
         if (string.IsNullOrEmpty(userFolderName))
         {
-             return Unauthorized("User folder information not found.");
+             message = "User folder information not found.";
+             return isAjax ? Json(new { success = false, message }) : Unauthorized(message);
         }
          if (string.IsNullOrEmpty(fileName))
         {
-            TempData["RenameError"] = "Invalid file name provided for deletion.";
+            message = "Invalid file name provided for deletion.";
+            if(isAjax) return Json(new { success = false, message });
+            TempData["RenameError"] = message;
             return RedirectToAction(nameof(Index));
         }
 
-        // Use the same FileService method used by UploadController and AdminController
         var success = await _fileService.DeleteFileAsync(userFolderName, fileName);
 
         if(success)
         {
-            TempData["RenameSuccess"] = $"File '{fileName}' deleted successfully.";
-             _logger.LogInformation("User '{UserName}' deleted file '{FileName}' from Rename page.", User.Identity?.Name, fileName);
+            message = $"File '{fileName}' deleted successfully.";
+            _logger.LogInformation("User '{UserName}' deleted file '{FileName}' from Rename page.", User.Identity?.Name, fileName);
+            if(isAjax) return Json(new { success = true, message, deletedFileName = fileName });
+            TempData["RenameSuccess"] = message;
         }
         else
         {
-            TempData["RenameError"] = $"An error occurred while deleting file '{fileName}'.";
-             _logger.LogError("User '{UserName}' failed to delete file '{FileName}' from Rename page.", User.Identity?.Name, fileName);
+            message = $"An error occurred while deleting file '{fileName}'.";
+            _logger.LogError("User '{UserName}' failed to delete file '{FileName}' from Rename page.", User.Identity?.Name, fileName);
+             if(isAjax) return Json(new { success = false, message, deletedFileName = fileName });
+            TempData["RenameError"] = message;
         }
+         // For non-AJAX, redirect back to Index
          return RedirectToAction(nameof(Index));
     }
 

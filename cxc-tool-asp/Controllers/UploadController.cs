@@ -2,6 +2,11 @@ using cxc_tool_asp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims; // Required for User.FindFirstValue
+using System.Collections.Generic; // Required for List
+using System.Threading.Tasks; // Required for Task
+using Microsoft.AspNetCore.Http; // Required for IFormFile
+using System.IO; // Required for Path
+using System.Linq; // Required for Linq methods like Any()
 
 namespace cxc_tool_asp.Controllers;
 
@@ -29,85 +34,139 @@ public class UploadController : Controller
         if (string.IsNullOrEmpty(userFolderName))
         {
             _logger.LogWarning("User '{UserName}' attempted to access upload page without FolderName claim.", User.Identity?.Name);
-            // Handle error - maybe redirect to logout or an error page
-            return RedirectToAction("Login", "Account"); // Redirect to login if claim is missing
+            return RedirectToAction("Login", "Account");
         }
 
-        // Get list of files currently in the user's folder
         var files = await _fileService.GetFilesAsync(userFolderName);
-
-        // TODO: Pass the file list and potentially other needed data to the view
         ViewBag.UserFiles = files;
         _logger.LogInformation("User '{UserName}' accessed Upload page. Found {FileCount} files.", User.Identity?.Name, files.Count);
 
-        return View(); // Placeholder - View needs to be created
+        return View();
     }
 
-    // POST: /Upload/Index (or a different action name like UploadFile)
+    // POST: /Upload/UploadFile (Handles single or multiple files)
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UploadFile(IFormFile file) // Assuming single file upload for now
+    // Adjust RequestSizeLimit based on expected total size of multiple files if needed
+    // [RequestSizeLimit(MaxFileSize * 5 + 1024)] // Example: Allow up to 5 files of max size + overhead
+    public async Task<IActionResult> UploadFile(List<IFormFile> files) // Changed parameter to List<IFormFile>
     {
-         var userFolderName = User.FindFirstValue("FolderName");
+        bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+        var userFolderName = User.FindFirstValue("FolderName");
+
+        // Return structure for AJAX response when handling multiple files
+        var ajaxResults = new List<object>();
+        int successCount = 0;
+        int errorCount = 0;
+        var errorMessages = new List<string>();
+        var successMessages = new List<string>();
+
+
         if (string.IsNullOrEmpty(userFolderName))
         {
             _logger.LogWarning("User '{UserName}' attempted to upload file without FolderName claim.", User.Identity?.Name);
-            return Unauthorized("User folder information not found."); // Or redirect
-        }
-
-        if (file == null || file.Length == 0)
-        {
-            TempData["UploadError"] = "Please select a file to upload.";
+            string message = "User folder information not found.";
+            if (isAjax) return Json(new { success = false, message, results = ajaxResults });
+            TempData["UploadError"] = message;
             return RedirectToAction(nameof(Index));
         }
 
-        // --- File Validation ---
-        var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (string.IsNullOrEmpty(fileExtension) || !AllowedExtensions.Contains(fileExtension))
+        if (files == null || !files.Any())
         {
-            TempData["UploadError"] = $"Invalid file type. Allowed types are: {string.Join(", ", AllowedExtensions)}";
-            _logger.LogWarning("User '{UserName}' attempted to upload invalid file type: {FileName}", User.Identity?.Name, file.FileName);
+            string message = "Please select at least one file to upload.";
+            if (isAjax) return Json(new { success = false, message, results = ajaxResults });
+            TempData["UploadError"] = message;
             return RedirectToAction(nameof(Index));
         }
 
-        if (file.Length > MaxFileSize)
+        foreach (var file in files)
         {
-            TempData["UploadError"] = $"File size exceeds the limit of {MaxFileSize / 1024 / 1024} MB.";
-             _logger.LogWarning("User '{UserName}' attempted to upload oversized file: {FileName} ({FileSize} bytes)", User.Identity?.Name, file.FileName, file.Length);
+            if (file == null || file.Length == 0)
+            {
+                errorCount++;
+                errorMessages.Add("An empty file reference was received.");
+                ajaxResults.Add(new { success = false, fileName = "N/A", message = "Empty file reference." });
+                continue; // Skip to the next file
+            }
+
+            // --- File Validation ---
+            var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            string validationError = null;
+
+            if (string.IsNullOrEmpty(fileExtension) || !AllowedExtensions.Contains(fileExtension))
+            {
+                validationError = $"Invalid file type ({file.FileName}). Allowed types are: {string.Join(", ", AllowedExtensions)}";
+                _logger.LogWarning("User '{UserName}' attempted to upload invalid file type: {FileName}", User.Identity?.Name, file.FileName);
+            }
+            else if (file.Length > MaxFileSize)
+            {
+                validationError = $"File size exceeds the limit of {MaxFileSize / 1024 / 1024} MB ({file.FileName}).";
+                _logger.LogWarning("User '{UserName}' attempted to upload oversized file: {FileName} ({FileSize} bytes)", User.Identity?.Name, file.FileName, file.Length);
+            }
+
+            if (validationError != null)
+            {
+                errorCount++;
+                errorMessages.Add(validationError);
+                ajaxResults.Add(new { success = false, fileName = file.FileName, message = validationError });
+                continue; // Skip to the next file
+            }
+            // --- End File Validation ---
+
+            var savedFileName = await _fileService.SaveFileAsync(userFolderName, file);
+
+            if (savedFileName != null)
+            {
+                successCount++;
+                string message = $"File '{savedFileName}' uploaded successfully.";
+                successMessages.Add(message);
+                _logger.LogInformation("User '{UserName}' successfully uploaded file '{FileName}'.", User.Identity?.Name, savedFileName);
+                ajaxResults.Add(new { success = true, message, fileName = savedFileName });
+            }
+            else
+            {
+                errorCount++;
+                string message = $"An error occurred while uploading the file '{file.FileName}'.";
+                errorMessages.Add(message);
+                _logger.LogError("User '{UserName}' failed to upload file '{OriginalFileName}'.", User.Identity?.Name, file.FileName);
+                ajaxResults.Add(new { success = false, fileName = file.FileName, message });
+            }
+        } // End foreach loop
+
+        // Set TempData for non-AJAX requests or summary for AJAX
+        if (!isAjax)
+        {
+            if (successCount > 0) TempData["UploadSuccess"] = $"{successCount} file(s) uploaded successfully.";
+            if (errorCount > 0) TempData["UploadError"] = $"{errorCount} file(s) failed to upload. Errors: {string.Join(" ", errorMessages)}";
             return RedirectToAction(nameof(Index));
-        }
-        // --- End File Validation ---
-
-
-        var savedFileName = await _fileService.SaveFileAsync(userFolderName, file);
-
-        if (savedFileName != null)
-        {
-            TempData["UploadSuccess"] = $"File '{savedFileName}' uploaded successfully.";
-             _logger.LogInformation("User '{UserName}' successfully uploaded file '{FileName}'.", User.Identity?.Name, savedFileName);
         }
         else
         {
-            TempData["UploadError"] = "An error occurred while uploading the file.";
-             _logger.LogError("User '{UserName}' failed to upload file '{OriginalFileName}'.", User.Identity?.Name, file.FileName);
-        }
+            // For AJAX, return a summary and detailed results
+            bool overallSuccess = errorCount == 0;
+            string summaryMessage = $"{successCount} uploaded, {errorCount} failed.";
+            if (errorCount > 0) summaryMessage += $" First error: {errorMessages.FirstOrDefault()}";
 
-        return RedirectToAction(nameof(Index));
+            return Json(new { success = overallSuccess, message = summaryMessage, results = ajaxResults });
+        }
     }
 
-    // TODO: Add action for deleting an uploaded file (before renaming)
+    // POST: /Upload/DeleteUploadedFile
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteUploadedFile(string fileName)
     {
+        bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
         var userFolderName = User.FindFirstValue("FolderName");
         if (string.IsNullOrEmpty(userFolderName))
         {
-             return Unauthorized("User folder information not found.");
+             return isAjax ? Json(new { success = false, message = "User folder information not found." }) : Unauthorized("User folder information not found.");
         }
          if (string.IsNullOrEmpty(fileName))
         {
-            TempData["UploadError"] = "Invalid file name provided for deletion.";
+            string message = "Invalid file name provided for deletion.";
+            if(isAjax) return Json(new { success = false, message });
+            TempData["UploadError"] = message;
             return RedirectToAction(nameof(Index));
         }
 
@@ -115,13 +174,17 @@ public class UploadController : Controller
 
         if(success)
         {
-            TempData["UploadSuccess"] = $"File '{fileName}' deleted successfully.";
-             _logger.LogInformation("User '{UserName}' deleted uploaded file '{FileName}'.", User.Identity?.Name, fileName);
+            string message = $"File '{fileName}' deleted successfully.";
+            _logger.LogInformation("User '{UserName}' deleted uploaded file '{FileName}'.", User.Identity?.Name, fileName);
+            if(isAjax) return Json(new { success = true, message });
+            TempData["UploadSuccess"] = message;
         }
         else
         {
-            TempData["UploadError"] = $"An error occurred while deleting file '{fileName}'.";
-             _logger.LogError("User '{UserName}' failed to delete uploaded file '{FileName}'.", User.Identity?.Name, fileName);
+            string message = $"An error occurred while deleting file '{fileName}'.";
+            _logger.LogError("User '{UserName}' failed to delete uploaded file '{FileName}'.", User.Identity?.Name, fileName);
+             if(isAjax) return Json(new { success = false, message });
+            TempData["UploadError"] = message;
         }
          return RedirectToAction(nameof(Index));
     }

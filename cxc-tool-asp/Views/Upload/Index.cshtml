@@ -1,69 +1,359 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
 @{
     ViewData["Title"] = "Upload Files";
     var userFiles = ViewBag.UserFiles as List<string> ?? new List<string>();
+    // Function to generate unique IDs for list items
+    Func<string, string> GenerateFileId = (fileName) => $"file_{Guid.NewGuid()}"; // Use GUID for uniqueness
 }
 
 <h1>@ViewData["Title"]</h1>
 
-<!-- Display Success/Error Messages -->
-@if (TempData["UploadSuccess"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["UploadSuccess"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-}
-@if (TempData["UploadError"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @TempData["UploadError"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-}
-
-
 <div class="row">
-    <!-- Upload Form Column -->
+    <!-- Upload Form / Drop Zone Column -->
     <div class="col-md-6 mb-4">
-        <h4>Select File to Upload</h4>
-        <form asp-action="UploadFile" method="post" enctype="multipart/form-data">
-            @Html.AntiForgeryToken()
-            <div class="mb-3">
-                <label for="file" class="form-label">Choose file:</label>
-                <input type="file" id="file" name="file" class="form-control" required accept=".pdf,.docx,.jpg,.jpeg,.png" />
-                <div id="fileHelp" class="form-text">Allowed types: PDF, DOCX, JPG, PNG. Max size: 10 MB.</div>
-            </div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-cloud-upload me-1"></i> Upload</button>
-        </form>
+        <h4>Select Files or Drag & Drop</h4>
+        <div id="dropZone" class="border border-dashed p-5 text-center mb-3" style="border-width: 2px !important; min-height: 150px; background-color: #f8f9fa;">
+            <i class="bi bi-cloud-arrow-up-fill fs-1 text-muted"></i>
+            <p class="text-muted mt-2">Drag & drop files here or click below</p>
+             <!-- Fallback Form -->
+            <form asp-action="UploadFile" method="post" enctype="multipart/form-data" id="uploadFormFallback">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <label for="fileInput" class="btn btn-secondary" id="fileInputLabel"> @* Added ID to label *@
+                         <i class="bi bi-folder2-open me-1"></i> Choose Files...
+                    </label>
+                    <input type="file" id="fileInput" name="files" class="d-none" accept=".pdf,.docx,.jpg,.jpeg,.png" multiple /> @* Name matches controller param, multiple added *@
+                    <div id="fileHelp" class="form-text mt-2">Allowed types: PDF, DOCX, JPG, PNG. Max size: 10 MB per file.</div>
+                </div>
+                <button type="submit" class="btn btn-primary d-none" id="fallbackSubmitBtn"><i class="bi bi-cloud-upload me-1"></i> Upload Selected Files (Fallback)</button> @* Text updated *@
+            </form>
+        </div>
+        <!-- Progress Bar Area (for multiple files) -->
+         <div id="uploadProgressArea"></div>
+
+
+        <!-- Message Area -->
+        <div id="messageArea" class="mb-3">
+            @if (TempData["UploadSuccess"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @TempData["UploadSuccess"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["UploadError"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @TempData["UploadError"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+        </div>
+
+
     </div>
 
     <!-- Uploaded Files List Column -->
     <div class="col-md-6">
         <h4>Your Uploaded Files</h4>
-        @if (!userFiles.Any())
-        {
-            <div class="alert alert-info" role="alert">
-                You haven't uploaded any files yet.
-            </div>
-        }
-        else
-        {
-            <ul class="list-group">
+        <ul class="list-group" id="fileList">
+            @if (!userFiles.Any())
+            {
+                <li id="noFilesMessage" class="list-group-item text-muted">You haven't uploaded any files yet.</li>
+            }
+            else
+            {
                 @foreach (var fileName in userFiles.OrderBy(f => f))
                 {
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                    var fileId = GenerateFileId(fileName);
+                    <li id="@fileId" class="list-group-item d-flex justify-content-between align-items-center">
                         <span><i class="bi bi-file-earmark me-2"></i>@fileName</span>
-                        <form asp-action="DeleteUploadedFile" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this file: @fileName?');">
+                        <form asp-action="DeleteUploadedFile" method="post" class="d-inline delete-form" data-file-id="@fileId" data-file-name="@fileName">
                              @Html.AntiForgeryToken()
                              <input type="hidden" name="fileName" value="@fileName" />
-                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete @fileName"><i class="bi bi-trash"></i></button>
+                             <button type="submit" class="btn btn-sm btn-outline-danger delete-btn" title="Delete @fileName"><i class="bi bi-trash"></i></button>
                         </form>
                     </li>
                 }
-            </ul>
-            <p class="mt-3">
-                Go to the <a asp-controller="Rename" asp-action="Index">Rename & Download</a> page to process these files.
-            </p>
-        }
+            }
+        </ul>
+        <p class="mt-3">
+            Go to the <a asp-controller="Rename" asp-action="Index">Rename & Download</a> page to process these files.
+        </p>
     </div>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const messageArea = document.getElementById('messageArea');
+        const noFilesMessage = document.getElementById('noFilesMessage');
+        const uploadProgressArea = document.getElementById('uploadProgressArea'); // Changed target
+        const fallbackForm = document.getElementById('uploadFormFallback');
+        const fileInputLabel = document.getElementById('fileInputLabel'); // Get label
+        const antiforgeryToken = '@Xsrf.GetAndStoreTokens(Context).RequestToken'; // Get token
+
+        // --- Helper Functions ---
+        function displayMessage(message, isSuccess) {
+            const alertClass = isSuccess ? 'alert-success' : 'alert-danger';
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
+            alertDiv.setAttribute('role', 'alert');
+            alertDiv.innerHTML = `
+                ${escapeHtml(message)}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            messageArea.insertBefore(alertDiv, messageArea.firstChild); // Prepend new message
+
+            // Auto-dismiss after 30 seconds
+            setTimeout(() => {
+                const bsAlert = bootstrap?.Alert?.getInstance(alertDiv);
+                if (bsAlert) {
+                    bsAlert.close();
+                } else {
+                    // Fallback removal if Bootstrap JS isn't loaded or alert is already gone
+                    alertDiv.remove();
+                }
+            }, 30000); // 30 seconds
+        }
+
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                 .replace(/&/g, "&amp;") // Replace & first
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;"); // Or &apos;
+        }
+
+        function addFileToList(fileName) {
+            if (noFilesMessage) {
+                noFilesMessage.remove();
+            }
+            const fileId = `file_${new Date().getTime()}_${Math.random().toString(16).slice(2)}`;
+            const li = document.createElement('li');
+            li.id = fileId;
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.innerHTML = `
+                <span><i class="bi bi-file-earmark me-2"></i>${escapeHtml(fileName)}</span>
+                <form action="/Upload/DeleteUploadedFile" method="post" class="d-inline delete-form" data-file-id="${fileId}" data-file-name="${escapeHtml(fileName)}">
+                     <input name="__RequestVerificationToken" type="hidden" value="${antiforgeryToken}">
+                     <input type="hidden" name="fileName" value="${escapeHtml(fileName)}" />
+                     <button type="submit" class="btn btn-sm btn-outline-danger delete-btn" title="Delete ${escapeHtml(fileName)}"><i class="bi bi-trash"></i></button>
+                </form>`;
+            fileList.appendChild(li);
+            li.querySelector('.delete-form').addEventListener('submit', handleDeleteSubmit);
+        }
+
+        function removeFileFromList(fileId) {
+            const itemToRemove = document.getElementById(fileId);
+            if (itemToRemove) {
+                itemToRemove.remove();
+            }
+            if (fileList.children.length === 0 && !document.getElementById('noFilesMessage')) {
+                 const li = document.createElement('li');
+                 li.id = 'noFilesMessage';
+                 li.className = 'list-group-item text-muted';
+                 li.textContent = "You haven't uploaded any files yet.";
+                 fileList.appendChild(li);
+            }
+        }
+
+        // --- Progress Bar Handling (Modified for multiple files) ---
+        function createOrUpdateProgressBar(fileIdentifier, percentage) {
+            let progressContainer = document.getElementById(`progress-${fileIdentifier}`);
+            if (!progressContainer) {
+                progressContainer = document.createElement('div');
+                progressContainer.id = `progress-${fileIdentifier}`;
+                progressContainer.className = 'progress mb-1'; // Add some margin
+                progressContainer.style.height = '10px'; // Make it smaller
+                progressContainer.innerHTML = `
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    <small class="progress-text ms-2 text-muted" style="line-height: 10px; font-size: 0.75rem;">${escapeHtml(fileIdentifier)}</small>
+                `;
+                uploadProgressArea.appendChild(progressContainer);
+            }
+
+            const progressBar = progressContainer.querySelector('.progress-bar');
+            percentage = Math.round(percentage);
+            progressBar.style.width = percentage + '%';
+            progressBar.setAttribute('aria-valuenow', percentage);
+            // progressBar.textContent = percentage + '%'; // Remove text from bar itself
+        }
+
+        function removeProgressBar(fileIdentifier) {
+             setTimeout(() => {
+                const progressContainer = document.getElementById(`progress-${fileIdentifier}`);
+                if (progressContainer) {
+                    progressContainer.remove();
+                }
+             }, 1500); // Remove after 1.5 seconds
+        }
+
+
+        // --- Drag & Drop Event Handlers ---
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-primary', 'bg-light');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            dropZone.classList.remove('border-primary', 'bg-light');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-primary', 'bg-light');
+            if (e.dataTransfer.files.length) {
+                // Handle multiple dropped files
+                Array.from(e.dataTransfer.files).forEach(file => handleFileUpload(file));
+            }
+        });
+
+        // Trigger file input click when drop zone is clicked, *unless* the label was clicked
+        dropZone.addEventListener('click', (e) => {
+            // Check if the click target is the label or inside the label or the input itself
+            if (e.target !== fileInputLabel && !fileInputLabel.contains(e.target) && e.target !== fileInput) {
+                 fileInput.click();
+            }
+            // If the label was clicked, the browser handles opening the dialog.
+        });
+
+
+        // Handle file selection via input (multiple files)
+        fileInput.addEventListener('change', (e) => {
+            if (fileInput.files.length) {
+                 Array.from(fileInput.files).forEach(file => handleFileUpload(file));
+                fileInput.value = ''; // Reset input
+            }
+        });
+
+        // --- AJAX Upload (Modified for multiple files and progress) ---
+        function handleFileUpload(file) {
+            if (!file) return;
+
+            const fileIdentifier = file.name; // Use filename as identifier for progress
+            createOrUpdateProgressBar(fileIdentifier, 0); // Create initial progress bar
+
+            const formData = new FormData();
+            // IMPORTANT: The controller expects a parameter named 'files'.
+            // When sending one file at a time via AJAX, we still need to use the expected parameter name.
+            formData.append('files', file, file.name); // Use the plural name expected by the controller
+            formData.append('__RequestVerificationToken', antiforgeryToken);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/Upload/UploadFile', true);
+
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    const percentage = (event.loaded / event.total) * 100;
+                    createOrUpdateProgressBar(fileIdentifier, percentage);
+                }
+            };
+
+            xhr.onload = function() {
+                removeProgressBar(fileIdentifier); // Remove progress bar on completion
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        // The controller now returns a summary and detailed results array
+                        if (response.results && Array.isArray(response.results)) {
+                             // Process the result for *this specific file*
+                             const fileResult = response.results.find(r => r.fileName === file.name);
+                             if (fileResult) {
+                                 displayMessage(fileResult.message, fileResult.success);
+                                 if (fileResult.success) {
+                                     addFileToList(fileResult.fileName);
+                                 }
+                             } else {
+                                 // If individual result not found, display summary message
+                                 displayMessage(response.message || `Processed: ${file.name}`, response.success);
+                             }
+                        } else { // Fallback for older single-file response structure
+                             displayMessage(response.message, response.success);
+                             if (response.success && response.fileName) {
+                                 addFileToList(response.fileName);
+                             }
+                        }
+                    } catch (e) {
+                        displayMessage(`Error parsing server response for ${file.name}.`, false);
+                        console.error("Error parsing JSON:", e, xhr.responseText);
+                    }
+                } else {
+                     let errorMsg = `Upload failed for ${file.name} (Status: ${xhr.status})`;
+                     try {
+                         const response = JSON.parse(xhr.responseText);
+                         if(response && response.message) { errorMsg = response.message; }
+                     } catch(e) { /* Ignore */ }
+                    displayMessage(errorMsg, false);
+                    console.error("Upload failed:", xhr.status, xhr.statusText, xhr.responseText);
+                }
+            };
+
+            xhr.onerror = function() {
+                removeProgressBar(fileIdentifier);
+                displayMessage(`Network error occurred during upload for ${file.name}.`, false);
+                 console.error("Network error during upload.");
+            };
+
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.send(formData);
+        }
+
+        // --- AJAX Delete ---
+        function handleDeleteSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const fileName = form.dataset.fileName;
+            const fileId = form.dataset.fileId;
+
+            if (!confirm(`Are you sure you want to delete this file: ${fileName}?`)) {
+                return;
+            }
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': antiforgeryToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                 body: new FormData(form)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().catch(() => ({ message: `HTTP error! Status: ${response.status}` })).then(errorData => {
+                         throw new Error(errorData?.message || `HTTP error! Status: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayMessage(data.message, data.success);
+                if (data.success) {
+                    removeFileFromList(fileId);
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting file:', error);
+                displayMessage(error.message || 'An error occurred while deleting the file.', false);
+            });
+        }
+
+        // Attach delete handlers to existing forms on page load
+        document.querySelectorAll('.delete-form').forEach(form => {
+            form.addEventListener('submit', handleDeleteSubmit);
+        });
+
+        // Prevent fallback form submission if JS is enabled
+        fallbackForm.addEventListener('submit', (e) => {
+             if (!fileInput.files.length) {
+                 e.preventDefault();
+             }
+        });
+
+    </script>
+}

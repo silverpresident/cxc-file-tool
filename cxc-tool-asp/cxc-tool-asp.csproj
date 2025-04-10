@@ -14,4 +14,18 @@
     <PackageReference Include="MimeTypeMapOfficial" Version="1.0.17" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Ensure data files are published -->
+    <Content Include="Data2\subjects.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- Add users.csv here too if it should be seeded, though it's usually generated/managed -->
+    <!--
+    <Content Include="Data2\users.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+     -->
+     <!-- Note: Candidate file is year-specific, so not including a base one -->
+  </ItemGroup>
+
 </Project>

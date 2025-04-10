@@ -10,6 +10,16 @@
             };
         }
 **********************
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+         .replace(/&/g, "&amp;") // Replace & first
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;"); // Or &apos;
+}
+**********************
 change the setup so that the subjects list is stored in /Data2 not /Data
 then Import the list of subject and subject code from the php file @/old-php-project/pre.inc
 ***********************
@@ -19,3 +29,32 @@ On the file upload page make the following changes
 - Upload files by ajax (avoid page reload but keep functionality as a fallback if javascript fails)
   - SHow upload progress
 - Delete files via ajax  (avoid page reload but keep functionality as a fallback if javascript fails)
+************************
+Let make some update to the Candidate Model.
+1. The fields in the file must be store in the order:Class,Name,Exam,CxcRegistrationNo,Subjects
+2. CandidateCode should be calculated as the last 4 digits of CxcRegistrationNo
+3. The file for upload may vary in field labels and content
+  - you should make the best attempt to figure out the contexts of the file
+  - Name can map to partyname
+  - CxcRegistrationNo can map to current_cxc_candidate_no,cxc_candidate_no,cxc_registration_no
+
+***********************
+On the rename page make the following changes
+- Allow only 1 file to be selected
+- process the rename by ajax (avoid page reload but keep the existing functionality as a fallback if javascript fails)
+- Update the page dynamically with the result of ajax processing
+- Delete files via ajax  (avoid page reload but keep functionality as a fallback if javascript fails)
+- Include a button in the uploaded files list to open the file in a new tab 
+- Include a button in the processed files list to open the file in a new tab before the download button
+- The registrationNo input should accept the 4 digit candadite code. When the file is being renamed the 6-digit centreNo should be placed before the candidate code to form the registration number used inthe filename
+- The success notification added for each rename should disappear after 60 seconds.
+***********************
+I have decided to move the generate files to azure blob storage
+- here are the storage key settings
+key: 
+connection string: 
+-update the app setting with the necessary values
+-include relevant azure storage libraries
+- change the root of the store use the azure blob storage such that the Data folder and Data2 folder will contained in the azure blob storage
+- include an option on the Admin/Subjects page to "Import Defaults" which will copy the subject from the Data2/subject.csv file on the system to the azure Data2/subjects.csv
+

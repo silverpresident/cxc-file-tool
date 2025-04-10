@@ -24,7 +24,7 @@ public class UserViewModel
     /// The password for the user. Required for new users. Optional for edits (if not changing password).
     /// </summary>
     [DataType(DataType.Password)]
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters long.")]
+    [StringLength(100, MinimumLength = 2, ErrorMessage = "Password must be at least 2 characters long.")]
     [Display(Name = "Password")]
     public string? Password { get; set; } // Nullable for edits where password isn't changed
 
