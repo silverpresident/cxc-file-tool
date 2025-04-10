@@ -26,9 +26,10 @@ public class SubjectService : ISubjectService
 
     public SubjectService(IWebHostEnvironment env, ILogger<SubjectService> logger)
     {
-        var dataFolderPath = Path.Combine(env.ContentRootPath, "Data");
-        Directory.CreateDirectory(dataFolderPath); // Ensure directory exists
-        _subjectFilePath = Path.Combine(dataFolderPath, "subjects.csv");
+        // Store subjects in Data2 folder like users
+        var data2FolderPath = Path.Combine(env.ContentRootPath, "Data2");
+        Directory.CreateDirectory(data2FolderPath); // Ensure directory exists
+        _subjectFilePath = Path.Combine(data2FolderPath, "subjects.csv");
         _logger = logger;
     }
 

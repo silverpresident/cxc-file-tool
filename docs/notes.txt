@@ -9,3 +9,13 @@
                 PasswordHash = "admin"
             };
         }
+**********************
+change the setup so that the subjects list is stored in /Data2 not /Data
+then Import the list of subject and subject code from the php file @/old-php-project/pre.inc
+***********************
+On the file upload page make the following changes
+- Accept uploading of files by drap and drop.
+- Update the page dynamically with the result of ajax upload and delete
+- Upload files by ajax (avoid page reload but keep functionality as a fallback if javascript fails)
+  - SHow upload progress
+- Delete files via ajax  (avoid page reload but keep functionality as a fallback if javascript fails)

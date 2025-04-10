@@ -19,7 +19,7 @@ public record Subject
     /// This is the primary identifier.
     /// </summary>
     [Required]
-    [RegularExpression(@"^\d{6}$", ErrorMessage = "Subject code must be 6 digits.")]
+    [RegularExpression(@"^\d{8}$", ErrorMessage = "Subject code must be 8 digits.")] // Changed from 6 to 8 digits
     public required string CxcSubjectCode { get; init; }
 
     /// <summary>

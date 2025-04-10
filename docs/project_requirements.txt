@@ -31,7 +31,7 @@ An admin can dalete the entire list.
 An admin can download the CSV list.
 
 ### Subject
-A Subject is an entity for which the system stores Name, cxc_subject_code, Level (CSEC, CAPE)
+A Subject is an entity for which the system stores Name, cxc_subject_code (6 digit), Level (CSEC, CAPE)
 THis is stored as a CSV file in the Data folder with the name  "subjects.csv"
 This list is used to populate a select list in the file naming section
 This list can be edited by  the admin

@@ -54,8 +54,8 @@ public class RenameController : Controller
         // Categorize files into processed and unprocessed
         var processedFiles = new List<string>();
         var unprocessedFiles = new List<string>();
-        // Regex to match the naming convention: 10 digits, 6 digits, (CS or MS or -Number), dot, extension
-        var processedFileRegex = new Regex(@"^\d{10}\d{6}(CS|MS|-\d+)\..+$");
+        // Regex to match the naming convention: 10 digits RegNo, 8 digits SubjectCode, (CS or MS or -Number), dot, extension
+        var processedFileRegex = new Regex(@"^\d{10}\d{8}(CS|MS|-\d+)\..+$"); // Updated subject code length to 8
 
         foreach (var file in files)
         {
@@ -237,8 +237,8 @@ public class RenameController : Controller
 
         var allFiles = await _fileService.GetFilesAsync(userFolderName);
         // Filter files based on the naming convention: {RegNo}{SubjectCode}{DocId}.ext
-        // We expect the subject code to be right after the 10-digit registration number.
-        var filesToZip = allFiles.Where(f => f.Length > 16 && f.Substring(10, 6) == subjectCode).ToList(); // 10 digits for RegNo, 6 for SubjectCode
+        // We expect the 8-digit subject code right after the 10-digit registration number.
+        var filesToZip = allFiles.Where(f => f.Length > 18 && f.Substring(10, 8) == subjectCode).ToList(); // 10 digits for RegNo, 8 for SubjectCode
 
         if (!filesToZip.Any())
         {

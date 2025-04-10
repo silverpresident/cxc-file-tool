@@ -81,7 +81,7 @@ This document outlines the controllers and services within the application.
 - Implements file locking.
 
 ### `ISubjectService` / `SubjectService`
-- Manages subject data stored in `Data/subjects.csv`.
+- Manages subject data stored in `Data2/subjects.csv`.
 - Handles CRUD operations, CSV import/export.
 - Uses `CsvHelper` for file interaction.
 - Implements file locking.

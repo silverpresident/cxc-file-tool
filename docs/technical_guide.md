@@ -23,8 +23,8 @@ This application is an ASP.NET Core MVC web application built using .NET 9 Previ
     *   `HomeController`: Handles the main authenticated landing page.
     *   `UploadController`: Handles user file uploads.
     *   `RenameController`: Handles file renaming and downloading logic.
-*   **`/Data`**: Stores application data CSV files (`subjects.csv`, `{YEAR}cand.csv`) and user-specific file subdirectories (named by `User.FolderName`). **Admin users can delete contents here.**
-*   **`/Data2`**: Stores the `users.csv` file. Separated to prevent accidental deletion by admin file management actions targeting the `/Data` folder.
+*   **`/Data`**: Stores application data CSV files (`{YEAR}cand.csv`) and user-specific file subdirectories (named by `User.FolderName`). **Admin users can delete contents here.**
+*   **`/Data2`**: Stores the  (`subjects.csv`,`users.csv`) files. Separated to prevent accidental deletion by admin file management actions targeting the `/Data` folder.
 *   **`/Models`**: Contains data models (records like `User`, `Candidate`, `Subject`) and view models (`LoginViewModel`, `UserViewModel`).
 *   **`/Services`**: Contains service interfaces and implementations for business logic and data access.
     *   `UserService`: Manages user data and authentication logic.
@@ -42,7 +42,7 @@ This application is an ASP.NET Core MVC web application built using .NET 9 Previ
 
 *   **Users:** Stored in `Data2/users.csv`. Includes `Id` (Guid), `DisplayName`, `PasswordHash` (BCrypt), `FolderName` (generated, unique), `IsAdmin` (bool).
 *   **Candidates:** Stored in `Data/{YEAR}cand.csv`. Includes `Name`, `CxcRegistrationNo` (10 digits, primary key), `Class`, `Subjects` (comma-separated string).
-*   **Subjects:** Stored in `Data/subjects.csv`. Includes `Name`, `CxcSubjectCode` (6 digits, primary key), `Level` (enum: CSEC, CAPE).
+*   **Subjects:** Stored in `Data2/subjects.csv`. Includes `Name`, `CxcSubjectCode` (8 digits, primary key), `Level` (enum: CSEC, CAPE).
 *   **Files:** User-uploaded files are stored in subdirectories within `Data/`. The subdirectory name corresponds to the `User.FolderName`.
 
 **Note:** CSV data services (`UserService`, `CandidateService`, `SubjectService`) use `CsvHelper` and implement basic file locking (`SemaphoreSlim`) to mitigate potential concurrency issues during read/write operations. `UserService` also uses a simple `ConcurrentDictionary` for in-memory caching.

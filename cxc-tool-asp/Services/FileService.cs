@@ -185,9 +185,9 @@ public class FileService : IFileService
             var fileExtension = Path.GetExtension(sanitizedOriginalFileName); // Includes the dot (.)
             var newFileName = $"{registrationNo}{subjectCode}{docIdentifier}{fileExtension}";
 
-            // Basic validation of components
+            // Basic validation of components (Updated SubjectCode regex to 8 digits)
             if (!System.Text.RegularExpressions.Regex.IsMatch(registrationNo, @"^\d{10}$") ||
-                !System.Text.RegularExpressions.Regex.IsMatch(subjectCode, @"^\d{6}$") ||
+                !System.Text.RegularExpressions.Regex.IsMatch(subjectCode, @"^\d{8}$") ||
                 string.IsNullOrWhiteSpace(docIdentifier))
             {
                  _logger.LogError("Invalid components provided for renaming file {OriginalFileName}: Reg={RegNo}, Subj={SubjCode}, ID={DocId}",
