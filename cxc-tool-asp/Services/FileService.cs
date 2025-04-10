@@ -1,317 +1,278 @@
-using Microsoft.AspNetCore.Mvc;
-using System.IO.Compression; // Required for ZipFile
-using MimeTypes; // Reverting to MimeTypes namespace for MimeTypeMapOfficial package
+using Microsoft.AspNetCore.Http; // For IFormFile
+using Microsoft.AspNetCore.Mvc; // For FileStreamResult
+using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression; // For ZipArchive
+using System.Linq;
+using System.Threading.Tasks;
+using MimeTypes; // For MimeTypeMap
+using Microsoft.Net.Http.Headers; // For ContentDispositionHeaderValue
 
 namespace cxc_tool_asp.Services;
 
 /// <summary>
-/// Service implementation for managing file operations within user-specific folders in the 'Data' directory.
+/// Service implementation for managing file operations using IStorageService.
+/// Acts as a layer between controllers and the storage abstraction.
 /// </summary>
-public class FileService : IFileService
+public class FileService : IFileService // Keep implementing the original interface for now
 {
-    private readonly string _dataDirectoryPath;
+    private readonly IStorageService _storageService;
     private readonly ILogger<FileService> _logger;
+    private readonly string _userDataRelativePath = "Data"; // Base relative path for user folders
 
-    public FileService(IWebHostEnvironment env, ILogger<FileService> logger)
+    public FileService(IStorageService storageService, ILogger<FileService> logger)
     {
-        // All user files are stored in subdirectories within the 'Data' folder
-        _dataDirectoryPath = Path.Combine(env.ContentRootPath, "Data");
-        Directory.CreateDirectory(_dataDirectoryPath); // Ensure base Data directory exists
+        _storageService = storageService;
         _logger = logger;
     }
 
-    private string GetUserFolderPath(string userFolderName)
+    // Helper to construct the relative path for a user's file
+    private string GetUserFileRelativePath(string userFolderName, string fileName)
     {
-        // Basic sanitization to prevent path traversal
+        // Basic sanitization
+        var sanitizedFolderName = Path.GetFileName(userFolderName);
+        var sanitizedFileName = Path.GetFileName(fileName);
+
+        if (string.IsNullOrWhiteSpace(sanitizedFolderName) || sanitizedFolderName.Contains("..") ||
+            string.IsNullOrWhiteSpace(sanitizedFileName) || sanitizedFileName.Contains(".."))
+        {
+            throw new ArgumentException("Invalid user folder name or file name.");
+        }
+        // Path format: Data/{FolderName}/{FileName}
+        return Path.Combine(_userDataRelativePath, sanitizedFolderName, sanitizedFileName).Replace(Path.DirectorySeparatorChar, '/');
+    }
+
+     // Helper to construct the relative path for a user's folder
+    private string GetUserFolderRelativePath(string userFolderName)
+    {
         var sanitizedFolderName = Path.GetFileName(userFolderName);
         if (string.IsNullOrWhiteSpace(sanitizedFolderName) || sanitizedFolderName.Contains(".."))
         {
-            throw new ArgumentException("Invalid user folder name.", nameof(userFolderName));
+            throw new ArgumentException("Invalid user folder name.");
         }
-        return Path.Combine(_dataDirectoryPath, sanitizedFolderName);
+         // Path format: Data/{FolderName}
+        return Path.Combine(_userDataRelativePath, sanitizedFolderName).Replace(Path.DirectorySeparatorChar, '/');
     }
+
 
     public async Task<string?> SaveFileAsync(string userFolderName, IFormFile file, string? desiredFileName = null)
     {
-        if (file == null || file.Length == 0)
-        {
-            _logger.LogWarning("Attempted to save a null or empty file for user folder {UserFolder}.", userFolderName);
-            return null;
-        }
+        if (file == null || file.Length == 0) return null;
 
         try
         {
-            var userFolderPath = GetUserFolderPath(userFolderName);
-            Directory.CreateDirectory(userFolderPath); // Ensure user's folder exists
-
-            var originalFileName = Path.GetFileName(file.FileName); // Sanitize original filename
+            var originalFileName = Path.GetFileName(file.FileName); // Sanitize
             var fileExtension = Path.GetExtension(originalFileName);
-            var finalFileName = string.IsNullOrWhiteSpace(desiredFileName)
-                ? originalFileName
-                : Path.ChangeExtension(desiredFileName, fileExtension);
+            var baseName = string.IsNullOrWhiteSpace(desiredFileName)
+                ? Path.GetFileNameWithoutExtension(originalFileName)
+                : desiredFileName;
 
-            // Basic sanitization for the final file name
-            finalFileName = Path.GetFileName(finalFileName);
-             if (string.IsNullOrWhiteSpace(finalFileName) || finalFileName.Contains("..") || finalFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            // Sanitize final base name
+             baseName = Path.GetInvalidFileNameChars().Aggregate(baseName, (current, c) => current.Replace(c.ToString(), string.Empty));
+             if (string.IsNullOrWhiteSpace(baseName)) baseName = "uploaded_file"; // Fallback name
+
+            var finalFileName = baseName + fileExtension;
+            var relativePath = GetUserFileRelativePath(userFolderName, finalFileName);
+
+            bool success = await _storageService.SaveFileAsync(relativePath, file);
+
+            if (success)
             {
-                _logger.LogError("Invalid final file name generated or provided: {FileName}", finalFileName);
-                return null;
-            }
-
-
-            var filePath = Path.Combine(userFolderPath, finalFileName);
-
-            // Prevent overwriting? For now, it overwrites. Add check if needed.
-            // if (File.Exists(filePath)) { ... handle overwrite logic ... }
-
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream);
-
-            _logger.LogInformation("Successfully saved file '{FileName}' to user folder '{UserFolder}'.", finalFileName, userFolderName);
-            // Return path relative to Data directory? Or full path? Let's return relative for potential web access if needed later.
-            // For now, just returning the final filename might be sufficient for listing. Let's return the filename.
-            return finalFileName;
-        }
-        catch (ArgumentException argEx)
-        {
-             _logger.LogError(argEx, "Invalid argument provided during file save for user folder {UserFolder}.", userFolderName);
-             return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error saving file '{OriginalFileName}' for user folder {UserFolder}.", file.FileName, userFolderName);
-            return null;
-        }
-    }
-
-    public Task<List<string>> GetFilesAsync(string userFolderName)
-    {
-        try
-        {
-            var userFolderPath = GetUserFolderPath(userFolderName);
-            if (!Directory.Exists(userFolderPath))
-            {
-                _logger.LogWarning("Attempted to list files for non-existent user folder: {UserFolder}", userFolderName);
-                return Task.FromResult(new List<string>()); // Return empty list
-            }
-
-            var files = Directory.GetFiles(userFolderPath)
-                               .Select(Path.GetFileName)
-                               .Where(f => f != null) // Ensure GetFileName didn't return null
-                               .ToList();
-            return Task.FromResult(files!); // Nullable context satisfied by Where filter
-        }
-        catch (ArgumentException argEx)
-        {
-             _logger.LogError(argEx, "Invalid argument provided when listing files for user folder {UserFolder}.", userFolderName);
-             return Task.FromResult(new List<string>());
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error listing files for user folder {UserFolder}.", userFolderName);
-            return Task.FromResult(new List<string>()); // Return empty list on error
-        }
-    }
-
-     public string? GetFilePath(string userFolderName, string fileName)
-    {
-        try
-        {
-            var userFolderPath = GetUserFolderPath(userFolderName);
-            var sanitizedFileName = Path.GetFileName(fileName); // Sanitize
-
-            if (string.IsNullOrWhiteSpace(sanitizedFileName) || sanitizedFileName.Contains(".."))
-            {
-                 _logger.LogWarning("Attempt to access invalid file path: User={UserFolder}, File={FileName}", userFolderName, fileName);
-                 return null;
-            }
-
-            var filePath = Path.Combine(userFolderPath, sanitizedFileName);
-
-            return File.Exists(filePath) ? filePath : null;
-        }
-        catch (ArgumentException argEx)
-        {
-             _logger.LogError(argEx, "Invalid argument provided when getting file path for User={UserFolder}, File={FileName}", userFolderName, fileName);
-             return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting file path for User={UserFolder}, File={FileName}", userFolderName, fileName);
-            return null;
-        }
-    }
-
-
-    public Task<bool> DeleteFileAsync(string userFolderName, string fileName)
-    {
-        try
-        {
-            var filePath = GetFilePath(userFolderName, fileName);
-
-            if (filePath != null && File.Exists(filePath))
-            {
-                File.Delete(filePath);
-                _logger.LogInformation("Deleted file '{FileName}' from user folder '{UserFolder}'.", fileName, userFolderName);
+                _logger.LogInformation("Saved file '{FileName}' for user folder '{UserFolder}' via storage service.", finalFileName, userFolderName);
+                return finalFileName; // Return just the filename
             }
             else
             {
-                 _logger.LogWarning("Attempted to delete non-existent file '{FileName}' from user folder '{UserFolder}'.", fileName, userFolderName);
+                 _logger.LogError("Storage service failed to save file '{FileName}' for user folder '{UserFolder}'.", finalFileName, userFolderName);
+                 return null;
             }
-            return Task.FromResult(true); // Return true even if file didn't exist
+        }
+        catch (ArgumentException argEx)
+        {
+             _logger.LogError(argEx, "Invalid argument constructing path for SaveFileAsync. User: {UserFolder}, File: {FileName}", userFolderName, file.FileName);
+             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting file '{FileName}' from user folder {UserFolder}.", fileName, userFolderName);
-            return Task.FromResult(false);
+            _logger.LogError(ex, "Error in SaveFileAsync. User: {UserFolder}, File: {FileName}", userFolderName, file.FileName);
+            return null;
         }
     }
 
-    public Task<string?> RenameFileAsync(string userFolderName, string originalFileName, string registrationNo, string subjectCode, string docIdentifier)
+    public async Task<List<string>> GetFilesAsync(string userFolderName)
     {
         try
         {
-            var userFolderPath = GetUserFolderPath(userFolderName);
-            var sanitizedOriginalFileName = Path.GetFileName(originalFileName);
+            var relativeDirectoryPath = GetUserFolderRelativePath(userFolderName);
+            return await _storageService.ListFilesAsync(relativeDirectoryPath);
+        }
+        catch (ArgumentException argEx)
+        {
+             _logger.LogError(argEx, "Invalid argument constructing path for GetFilesAsync. User: {UserFolder}", userFolderName);
+             return new List<string>();
+        }
+        catch (Exception ex)
+        {
+             _logger.LogError(ex, "Error in GetFilesAsync for user folder {UserFolder}", userFolderName);
+             return new List<string>();
+        }
+    }
 
-            var sourceFilePath = Path.Combine(userFolderPath, sanitizedOriginalFileName);
+    public string? GetFilePath(string userFolderName, string fileName)
+    {
+        // This method might be less relevant now. It originally returned a local path.
+        // We could return the relative path, or null if the concept doesn't fit.
+        // Let's return the relative path for potential use, but it's not a local system path.
+         try
+        {
+            return GetUserFileRelativePath(userFolderName, fileName);
+        }
+         catch (ArgumentException argEx)
+        {
+             _logger.LogError(argEx, "Invalid argument constructing path for GetFilePath. User: {UserFolder}, File: {FileName}", userFolderName, fileName);
+             return null;
+        }
+    }
 
-            if (!File.Exists(sourceFilePath))
-            {
-                _logger.LogError("Original file not found for renaming: {OriginalFileName} in folder {UserFolder}", sanitizedOriginalFileName, userFolderName);
-                return Task.FromResult<string?>(null);
-            }
+    public async Task<bool> DeleteFileAsync(string userFolderName, string fileName)
+    {
+         try
+        {
+            var relativePath = GetUserFileRelativePath(userFolderName, fileName);
+            return await _storageService.DeleteFileAsync(relativePath);
+        }
+         catch (ArgumentException argEx)
+        {
+             _logger.LogError(argEx, "Invalid argument constructing path for DeleteFileAsync. User: {UserFolder}, File: {FileName}", userFolderName, fileName);
+             return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in DeleteFileAsync. User: {UserFolder}, File: {FileName}", userFolderName, fileName);
+            return false;
+        }
+    }
 
-            var fileExtension = Path.GetExtension(sanitizedOriginalFileName); // Includes the dot (.)
+    public async Task<string?> RenameFileAsync(string userFolderName, string originalFileName, string registrationNo, string subjectCode, string docIdentifier)
+    {
+        try
+        {
+            var sourceRelativePath = GetUserFileRelativePath(userFolderName, originalFileName);
+
+            // Construct new name (validation happens in controller now, but double check?)
+            var fileExtension = Path.GetExtension(originalFileName);
             var newFileName = $"{registrationNo}{subjectCode}{docIdentifier}{fileExtension}";
+            var destinationRelativePath = GetUserFileRelativePath(userFolderName, newFileName);
 
-            // Basic validation of components (Updated SubjectCode regex to 8 digits)
-            if (!System.Text.RegularExpressions.Regex.IsMatch(registrationNo, @"^\d{10}$") ||
-                !System.Text.RegularExpressions.Regex.IsMatch(subjectCode, @"^\d{8}$") ||
-                string.IsNullOrWhiteSpace(docIdentifier))
+            bool success = await _storageService.MoveFileAsync(sourceRelativePath, destinationRelativePath);
+
+            if (success)
             {
-                 _logger.LogError("Invalid components provided for renaming file {OriginalFileName}: Reg={RegNo}, Subj={SubjCode}, ID={DocId}",
-                    sanitizedOriginalFileName, registrationNo, subjectCode, docIdentifier);
-                 return Task.FromResult<string?>(null);
+                 _logger.LogInformation("Renamed file '{OriginalFileName}' to '{NewFileName}' for user {UserFolder} via storage service.", originalFileName, newFileName, userFolderName);
+                 return newFileName;
             }
-
-            var destinationFilePath = Path.Combine(userFolderPath, newFileName);
-
-            // Handle potential overwrite? If new name already exists, fail for now.
-            if (File.Exists(destinationFilePath))
+            else
             {
-                _logger.LogWarning("Rename failed: Destination file already exists: {NewFileName} in folder {UserFolder}", newFileName, userFolderName);
-                return Task.FromResult<string?>(null);
+                 _logger.LogWarning("Storage service failed to move/rename file from '{Source}' to '{Destination}'.", sourceRelativePath, destinationRelativePath);
+                 return null;
             }
-
-            File.Move(sourceFilePath, destinationFilePath);
-            _logger.LogInformation("Renamed file '{OriginalFileName}' to '{NewFileName}' in folder {UserFolder}", sanitizedOriginalFileName, newFileName, userFolderName);
-            return Task.FromResult<string?>(newFileName);
         }
-         catch (ArgumentException argEx)
+        catch (ArgumentException argEx)
         {
-             _logger.LogError(argEx, "Invalid argument provided during file rename for user folder {UserFolder}.", userFolderName);
-             return Task.FromResult<string?>(null);
+             _logger.LogError(argEx, "Invalid argument constructing path for RenameFileAsync. User: {UserFolder}, File: {OriginalFileName}", userFolderName, originalFileName);
+             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error renaming file '{OriginalFileName}' in folder {UserFolder}.", originalFileName, userFolderName);
-            return Task.FromResult<string?>(null);
+             _logger.LogError(ex, "Error in RenameFileAsync. User: {UserFolder}, File: {OriginalFileName}", userFolderName, originalFileName);
+             return null;
         }
     }
 
-    public Task<bool> DeleteUserFilesAsync(string userFolderName)
+    public async Task<bool> DeleteUserFilesAsync(string userFolderName)
     {
-        try
+        // This now means deleting the "directory" in storage
+         try
         {
-            var userFolderPath = GetUserFolderPath(userFolderName);
-            if (Directory.Exists(userFolderPath))
-            {
-                Directory.Delete(userFolderPath, true); // Delete folder and all contents
-                _logger.LogInformation("Deleted user folder and all contents: {UserFolder}", userFolderName);
-            }
-             else
-            {
-                 _logger.LogWarning("Attempted to delete non-existent user folder: {UserFolder}", userFolderName);
-            }
-            return Task.FromResult(true);
+            var relativeDirectoryPath = GetUserFolderRelativePath(userFolderName);
+            return await _storageService.DeleteDirectoryAsync(relativeDirectoryPath);
         }
          catch (ArgumentException argEx)
         {
-             _logger.LogError(argEx, "Invalid argument provided when deleting user folder {UserFolder}.", userFolderName);
-             return Task.FromResult(false);
+             _logger.LogError(argEx, "Invalid argument constructing path for DeleteUserFilesAsync. User: {UserFolder}", userFolderName);
+             return false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting user folder {UserFolder}.", userFolderName);
-            return Task.FromResult(false);
+            _logger.LogError(ex, "Error in DeleteUserFilesAsync for user folder {UserFolder}", userFolderName);
+            return false;
         }
     }
 
-    public Task<List<(string UserFolder, string FileName)>> GetAllFilesInDataDirectoryAsync()
-    {
+     public async Task<List<(string UserFolder, string FileName)>> GetAllFilesInDataDirectoryAsync()
+     {
+        // This requires listing subdirectories and then listing files in each.
         var allFiles = new List<(string UserFolder, string FileName)>();
         try
         {
-            var subDirectories = Directory.GetDirectories(_dataDirectoryPath);
-            foreach (var dirPath in subDirectories)
+            var userFolders = await _storageService.ListSubdirectoriesAsync(_userDataRelativePath);
+            foreach (var userFolder in userFolders)
             {
-                var userFolder = Path.GetFileName(dirPath);
-                var files = Directory.GetFiles(dirPath);
-                foreach (var filePath in files)
-                {
-                    allFiles.Add((userFolder, Path.GetFileName(filePath)));
-                }
+                var relativeFolderPath = GetUserFolderRelativePath(userFolder);
+                var filesInFolder = await _storageService.ListFilesAsync(relativeFolderPath);
+                allFiles.AddRange(filesInFolder.Select(f => (userFolder, f)));
             }
-             _logger.LogInformation("Retrieved {Count} files across all user folders in {DataDir}", allFiles.Count, _dataDirectoryPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving all files from data directory {DataDir}", _dataDirectoryPath);
-            // Return empty list or re-throw depending on desired behavior
+             _logger.LogError(ex, "Error retrieving all files from storage directory {DataPath}", _userDataRelativePath);
         }
-        return Task.FromResult(allFiles);
-    }
+        return allFiles;
+     }
 
      public async Task<bool> DeleteSpecificFileAsync(string userFolderName, string fileName)
     {
-        // This reuses the existing DeleteFileAsync logic
+        // Reuses DeleteFileAsync
         return await DeleteFileAsync(userFolderName, fileName);
     }
 
-    public Task<FileStreamResult?> GetFileDownloadAsync(string userFolderName, string fileName)
+    public async Task<FileStreamResult?> GetFileDownloadAsync(string userFolderName, string fileName)
     {
         try
         {
-            var filePath = GetFilePath(userFolderName, fileName);
-            if (filePath == null || !File.Exists(filePath))
+            var relativePath = GetUserFileRelativePath(userFolderName, fileName);
+            var stream = await _storageService.ReadFileAsStreamAsync(relativePath);
+
+            if (stream == null)
             {
-                _logger.LogWarning("Attempted to download non-existent file: User={UserFolder}, File={FileName}", userFolderName, fileName);
-                return Task.FromResult<FileStreamResult?>(null);
+                 _logger.LogWarning("File not found in storage for download: {RelativePath}", relativePath);
+                return null;
             }
 
+            var contentType = MimeTypeMap.GetMimeType(Path.GetExtension(fileName));
+
+            // Important: For Blob streams, they might not be seekable for direct use in FileStreamResult
+            // depending on how they were downloaded. Copying to MemoryStream is safer.
             var memoryStream = new MemoryStream();
-            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-            {
-                stream.CopyTo(memoryStream);
-            }
-            memoryStream.Position = 0; // Reset stream position
+            await stream.CopyToAsync(memoryStream);
+            await stream.DisposeAsync(); // Dispose the original stream
+            memoryStream.Position = 0;
 
-            // Determine MIME type
-            var mimeType = MimeTypeMap.GetMimeType(Path.GetExtension(fileName));
-
-            var result = new FileStreamResult(memoryStream, mimeType)
+            return new FileStreamResult(memoryStream, contentType)
             {
-                FileDownloadName = fileName // The name the user sees when downloading
+                FileDownloadName = fileName
             };
-
-            _logger.LogInformation("Prepared file for download: User={UserFolder}, File={FileName}", userFolderName, fileName);
-            return Task.FromResult<FileStreamResult?>(result);
+        }
+         catch (ArgumentException argEx)
+        {
+             _logger.LogError(argEx, "Invalid argument constructing path for GetFileDownloadAsync. User: {UserFolder}, File: {FileName}", userFolderName, fileName);
+             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error preparing file for download: User={UserFolder}, File={FileName}", userFolderName, fileName);
-            return Task.FromResult<FileStreamResult?>(null);
+            _logger.LogError(ex, "Error preparing file for download: {UserFolder}/{FileName}", userFolderName, fileName);
+            return null;
         }
     }
 
@@ -320,32 +281,41 @@ public class FileService : IFileService
         var memoryStream = new MemoryStream();
         try
         {
-            using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true)) // Leave stream open
+            using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
             {
                 foreach (var fileName in filesToZip)
                 {
-                    var filePath = GetFilePath(userFolderName, fileName);
-                    if (filePath != null && File.Exists(filePath))
+                    var relativePath = GetUserFileRelativePath(userFolderName, fileName);
+                    var fileStream = await _storageService.ReadFileAsStreamAsync(relativePath);
+
+                    if (fileStream != null)
                     {
-                        // Use the filename as the entry name in the zip
-                        archive.CreateEntryFromFile(filePath, fileName);
+                        var entry = archive.CreateEntry(fileName, CompressionLevel.Optimal);
+                        await using (var entryStream = entry.Open())
+                        {
+                            await fileStream.CopyToAsync(entryStream);
+                        }
+                        await fileStream.DisposeAsync(); // Dispose stream after copying
                     }
                     else
                     {
-                        _logger.LogWarning("File not found while creating zip archive: User={UserFolder}, File={FileName}", userFolderName, fileName);
-                        // Optionally skip or throw error
+                        _logger.LogWarning("File not found in storage while creating zip archive: {RelativePath}", relativePath);
                     }
                 }
-            } // Archive is disposed here, but memoryStream remains open
-
-            memoryStream.Position = 0; // Reset stream position for reading
-            _logger.LogInformation("Created zip archive '{ZipFileName}.zip' for user {UserFolder} with {Count} files.", zipFileName, userFolderName, filesToZip.Count);
+            }
+            memoryStream.Position = 0;
             return memoryStream;
+        }
+         catch (ArgumentException argEx)
+        {
+             _logger.LogError(argEx, "Invalid argument constructing path during zip creation. User: {UserFolder}", userFolderName);
+             await memoryStream.DisposeAsync();
+             return null;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating zip archive '{ZipFileName}.zip' for user {UserFolder}.", zipFileName, userFolderName);
-            await memoryStream.DisposeAsync(); // Dispose the stream on error
+            await memoryStream.DisposeAsync();
             return null;
         }
     }

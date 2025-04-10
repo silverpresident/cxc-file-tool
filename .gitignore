@@ -34,7 +34,7 @@ bld/
 
 # Data folder results
 [Dd]ata/
-[Dd]ata2/
+![Dd]ata2/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
@@ -402,3 +402,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+*/appsettings.json
+*/appsettings.*.json
+!appsettings.Example.json
+cxc-tool-asp/appsettings.Development.json
+cxc-tool-asp/appsettings.json

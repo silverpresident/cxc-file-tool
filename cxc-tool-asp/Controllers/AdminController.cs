@@ -614,7 +614,50 @@ public class AdminController : Controller
              _logger.LogError(ex, "Error reading subject file for download by admin '{AdminUser}': {FilePath}", User.Identity?.Name, filePath);
              TempData["SubjectError"] = "An error occurred while preparing the subject file for download.";
              return RedirectToAction(nameof(Subjects));
+         }
+    }
+
+    // POST: /Admin/ImportDefaultSubjects
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ImportDefaultSubjects([FromServices] IWebHostEnvironment env, [FromServices] IStorageService storageService) // Inject env and storage service
+    {
+        // Path to the default subjects file included with the application (in ContentRoot)
+        var localDefaultSubjectPath = Path.Combine(env.ContentRootPath, "Data2", "subjects.csv");
+        // Relative path in storage
+        var storageSubjectPath = _subjectService.GetSubjectFilePath(); // e.g., "Data2/subjects.csv"
+
+        if (!System.IO.File.Exists(localDefaultSubjectPath))
+        {
+             _logger.LogError("Default subjects file not found at expected location: {Path}", localDefaultSubjectPath);
+             TempData["SubjectError"] = "Default subjects file is missing from the application deployment.";
+             return RedirectToAction(nameof(Subjects));
         }
+
+        try
+        {
+            // Use the storage service to copy the local file to the configured storage (Azure or Local)
+            bool success = await storageService.CopyLocalFileToStorageAsync(localDefaultSubjectPath, storageSubjectPath, overwrite: true);
+
+            if (success)
+            {
+                 _logger.LogInformation("Admin '{AdminUser}' imported default subjects from local file to storage path {StoragePath}.", User.Identity?.Name, storageSubjectPath);
+                 TempData["SubjectMessage"] = "Default subjects imported successfully, overwriting previous list in storage.";
+                 // Optional: Force reload of SubjectService cache if it exists? Currently, SubjectService reads on demand.
+            }
+            else
+            {
+                 _logger.LogError("Failed to copy default subjects file from {LocalPath} to storage path {StoragePath} via admin '{AdminUser}'.", localDefaultSubjectPath, storageSubjectPath, User.Identity?.Name);
+                 TempData["SubjectError"] = "Failed to import default subjects into storage.";
+            }
+        }
+        catch (Exception ex)
+        {
+             _logger.LogError(ex, "Error during default subjects import by admin '{AdminUser}'.", User.Identity?.Name);
+             TempData["SubjectError"] = "An unexpected error occurred during the default subjects import.";
+        }
+
+        return RedirectToAction(nameof(Subjects));
     }
 
 

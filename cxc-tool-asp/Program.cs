@@ -16,11 +16,29 @@ public class Program
         // Add services to the container.
         builder.Services.AddControllersWithViews();
 
-        // Register application services (using Singleton for file-based services with locking/caching)
+        // Register application services
+        // Use Singleton for file-based services with locking/caching
+        // Note: FileService is removed, its functionality will be replaced by IStorageService usage within other services
         builder.Services.AddSingleton<IUserService, UserService>();
         builder.Services.AddSingleton<ICandidateService, CandidateService>();
         builder.Services.AddSingleton<ISubjectService, SubjectService>();
-        builder.Services.AddSingleton<IFileService, FileService>();
+        // builder.Services.AddSingleton<IFileService, FileService>(); // Removed
+
+        // Conditionally register Storage Service based on configuration
+        var storageSettings = builder.Configuration.GetSection("StorageSettings");
+        var storageType = storageSettings["StorageType"];
+
+        if (storageType?.Equals("Azure", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            builder.Services.AddSingleton<IStorageService, AzureBlobStorageService>();
+            Console.WriteLine("Using Azure Blob Storage."); // Log to console during startup
+        }
+        else // Default to Local
+        {
+            builder.Services.AddSingleton<IStorageService, LocalStorageService>();
+             Console.WriteLine("Using Local File Storage."); // Log to console during startup
+        }
+
 
         // Configure Cookie Authentication
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
