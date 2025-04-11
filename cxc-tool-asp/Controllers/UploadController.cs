@@ -18,7 +18,7 @@ public class UploadController : Controller
     // Inject IStorageService instead of IFileService
     private readonly IStorageService _storageService;
     private readonly ILogger<UploadController> _logger;
-    private readonly string _userDataRelativePath = "Data"; // Base relative path for user folders
+    private readonly string _userDataRelativePath; // Base relative path for user folders
 
     // Configuration for file validation
     private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
@@ -29,6 +29,7 @@ public class UploadController : Controller
     {
         _storageService = storageService; // Use injected IStorageService
         _logger = logger;
+        _userDataRelativePath = _storageService.GetDataFolderName();
     }
 
     // Helper to construct the relative path for a user's file
