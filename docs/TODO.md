@@ -33,6 +33,6 @@ This list tracks pending tasks and potential improvements for the application.
 *   [ ] **Refactoring:** Extract common CRUD logic from `AdminController` if it becomes too large. Review `IStorageService` usage and path handling.
 *   [ ] **Security Hardening:** Review input sanitization, add checks against excessively large file uploads (consider `RequestSizeLimit` attribute), potentially implement rate limiting. Review file download security (ensure users can only access their own files, except admin).
 *   [ ] **Database Migration:** Consider migrating from CSV files to a proper database (e.g., SQLite, SQL Server, PostgreSQL) for improved performance, scalability, and data integrity.
-*   [ ] **Rename Page - Project File Numbering:** The current logic assigns "-1" to any file marked as "Project". Enhance this to check existing processed files for the same candidate/subject and assign the next available number (e.g., "-2", "-3").
+*   [x] **Rename Page - Project File Numbering:** The current logic assigns "-1" to any file marked as "Project". Enhance this to check existing processed files for the same candidate/subject and assign the next available number (e.g., "-2", "-3").
 
 *(This list should be reviewed and updated regularly.)*

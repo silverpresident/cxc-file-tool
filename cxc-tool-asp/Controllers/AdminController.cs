@@ -22,7 +22,7 @@ public class AdminController : Controller
     private readonly ISubjectService _subjectService;
     private readonly IStorageService _storageService; // Use IStorageService
     private readonly ILogger<AdminController> _logger;
-    private readonly string _userDataRelativePath = "Data";
+    private readonly string _userDataRelativePath;
 
     public AdminController(
         IUserService userService,
@@ -36,6 +36,7 @@ public class AdminController : Controller
         _subjectService = subjectService;
         _storageService = storageService; // Assign injected service
         _logger = logger;
+        _userDataRelativePath = _storageService.GetDataFolderName();
     }
 
     // Helper to construct the relative path for a user's file

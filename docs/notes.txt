@@ -57,4 +57,6 @@ connection string:
 -include relevant azure storage libraries
 - change the root of the store use the azure blob storage such that the Data folder and Data2 folder will contained in the azure blob storage
 - include an option on the Admin/Subjects page to "Import Defaults" which will copy the subject from the Data2/subject.csv file on the system to the azure Data2/subjects.csv
-
+**************************
+Rename Page - Project File Numbering:
+The current logic assigns "-1" to any file marked as "Project". Enhance this to check existing processed files for the same candidate/subject and assign the next available number (e.g., "-2", "-3").
