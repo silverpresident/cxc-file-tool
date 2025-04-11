@@ -285,7 +285,11 @@ public class UserService : IUserService
                  _logger.LogWarning("DeleteUser failed: User with ID {UserId} not found in cache.", id);
                  return false; // Not found
             }
-
+            if (userToRemove.DisplayName.ToLower() == "admin")
+            {
+                _logger.LogWarning("cannot delete admin user");
+                return false; // Not found
+            }
             // Remove from cache
             if (!_userCache.TryRemove(userToRemove.DisplayName, out _))
             {

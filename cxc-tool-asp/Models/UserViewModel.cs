@@ -16,7 +16,7 @@ public class UserViewModel
     /// The name displayed for the user. Should be unique.
     /// </summary>
     [Required(ErrorMessage = "Display Name is required.")]
-    [StringLength(50, MinimumLength = 3, ErrorMessage = "Display Name must be between 3 and 50 characters.")]
+    [StringLength(50, MinimumLength = 2, ErrorMessage = "Display Name must be between 2 and 50 characters.")]
     [Display(Name = "Display Name")]
     public required string DisplayName { get; set; }
 

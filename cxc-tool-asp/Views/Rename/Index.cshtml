@@ -5,30 +5,12 @@
     var unprocessedFiles = ViewBag.UnprocessedFiles as List<string> ?? new List<string>();
     var processedFiles = ViewBag.ProcessedFiles as List<string> ?? new List<string>();
     var subjects = ViewBag.SubjectsList as SelectList;
-    var candidatesData = ViewBag.CandidatesData as List<dynamic> ?? new List<dynamic>(); // Expecting list of { Value = CandidateCode, Text }
+    var candidatesData = ViewBag.CandidatesData as List<CandidateDatalistItem> ?? new List<CandidateDatalistItem>(); // Expecting list of { Value = CandidateCode, Text }
     Func<string, string> GenerateFileId = (fileName) => $"file_{Guid.NewGuid()}"; // Unique ID generator
 }
 
 <h1>@ViewData["Title"]</h1>
 
-<!-- Message Area -->
-<div id="messageArea" class="mb-3">
-    @* TempData messages handled by JS now, but kept for non-JS fallback *@
-    @if (TempData["RenameSuccess"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["RenameSuccess"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-    @if (TempData["RenameError"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @TempData["RenameError"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-</div>
 
 
 @if (!unprocessedFiles.Any() && !processedFiles.Any())
@@ -36,143 +18,170 @@
     <div class="alert alert-info" role="alert">
         You have no files uploaded. Go to the <a asp-controller="Upload" asp-action="Index">Upload</a> page first.
     </div>
-}
-else
+} else
 {
+
+
     <div class="row">
         <!-- Renaming Section Column -->
-        <div class="col-lg-6 mb-4">
+        <div class="col-lg-8 mb-4">
             <h4>Rename Unprocessed File</h4>
             @if (!unprocessedFiles.Any())
             {
-                 <div id="noUnprocessedFilesMessage" class="alert alert-secondary" role="alert"> @* Added ID *@
+                <div id="noUnprocessedFilesMessage" class="alert alert-secondary" role="alert">
+                    @* Added ID *@
                     No unprocessed files found.
-                 </div>
-            }
-            else
+                </div>
+            } else
             {
                 <form asp-action="RenameFile" method="post" id="renameForm">
                     @Html.AntiForgeryToken()
-                    <h5>1. Select File to Process</h5>
-                    <div class="list-group file-list-scrollable mb-3" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px;" id="unprocessedList">
-                        @foreach (var fileName in unprocessedFiles)
-                        {
-                            var fileId = GenerateFileId(fileName);
-                            <div id="@fileId" class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <input class="form-check-input me-2" type="radio" name="selectedFile" value="@fileName" id="radio_@fileId" required>
-                                    <label class="form-check-label" for="radio_@fileId"> @* Removed stretched-link *@
-                                        <i class="bi bi-file-earmark-arrow-up me-1"></i>@fileName
-                                    </label>
-                                </div>
-                                <a asp-action="GetFileInline" asp-route-fileName="@fileName" target="_blank" class="btn btn-sm btn-outline-secondary view-btn" title="View @fileName"><i class="bi bi-eye"></i></a> @* View Button Added *@
-                            </div>
-                        }
-                    </div>
 
-                    <h5 class="mt-3">2. Enter Renaming Details</h5>
-                    <div class="mb-3">
-                        <label for="subjectCode" class="form-label">Subject</label>
-                        <select id="subjectCode" name="subjectCode" class="form-select" asp-items="subjects" required>
-                            <option value="">-- Select Subject --</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="centreNumber" class="form-label">Centre Number</label>
-                        <input type="text" id="centreNumber" name="centreNumber" class="form-control" value="100111" pattern="\d{6}" title="Centre number must be 6 digits" required />
-                    </div>
-                    <div class="mb-3">
-                        <label for="candidateInput" class="form-label">Candidate Code (4 Digits)</label> @* Label updated *@
-                        <input class="form-control" list="candidateOptions" id="candidateInput" name="candidateCode" placeholder="Type name or enter 4-digit code..." required pattern="\d{4}" title="Select a candidate or enter a 4-digit candidate code"> @* Name changed, pattern changed *@
-                        <datalist id="candidateOptions">
-                             @* Value is now CandidateCode (4 digits) *@
-                            @foreach (var candidate in candidatesData)
-                            {
-                                <option value="@candidate.Value">@candidate.Text</option>
-                            }
-                        </datalist>
-                        <small class="form-text text-muted">Select from the list or enter the 4-digit candidate code.</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Document Type</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="docType" id="docTypeCS" value="CS" required>
-                            <label class="form-check-label" for="docTypeCS">Cover Sheet (CS)</label>
+                    <div class="row">
+                        <div class="col-lg-7 mb-4">
+                            <h5>1. Select File to Process</h5>
+                            <div class="list-group file-list-scrollable mb-3" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px;" id="unprocessedList">
+                                @foreach (var fileName in unprocessedFiles)
+                                {
+                                    var fileId = GenerateFileId(fileName);
+                                    <div id="@fileId" class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <input class="form-check-input me-2" type="radio" name="selectedFile" value="@fileName" id="radio_@fileId" required>
+                                            <label class="form-check-label" for="radio_@fileId">
+                                                @* Removed stretched-link *@
+                                                <i class="bi bi-file-earmark-arrow-up me-1"></i>@fileName
+                                            </label>
+                                        </div>
+                                        <a asp-action="GetFileInline" asp-route-fileName="@fileName" target="_blank" class="btn btn-sm btn-outline-secondary view-btn" title="View @fileName"><i class="bi bi-eye"></i></a> @* View Button Added *@
+                                    </div>
+                                }
+                            </div>
+                            <!-- Message Area -->
+                            <div id="messageArea" class="mb-3">
+                                @* TempData messages handled by JS now, but kept for non-JS fallback *@
+                                @if (TempData["RenameSuccess"] != null)
+                                {
+                                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                        @TempData["RenameSuccess"]
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    </div>
+                                }
+                                @if (TempData["RenameError"] != null)
+                                {
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        @TempData["RenameError"]
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    </div>
+                                }
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="docType" id="docTypeMS" value="MS">
-                            <label class="form-check-label" for="docTypeMS">Mark Scheme (MS)</label>
+                        <div class="col-lg-5 mb-4">
+                            <h5 class="mt-3">2. Enter Renaming Details</h5>
+                            <div class="mb-3">
+                                <label for="subjectCode" class="form-label">Subject</label>
+                                <select id="subjectCode" name="subjectCode" class="form-select" asp-items="subjects" required>
+                                    <option value="">-- Select Subject --</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="centreNumber" class="form-label">Centre Number</label>
+                                <input type="text" id="centreNumber" name="centreNumber" class="form-control" value="100111" pattern="\d{6}" title="Centre number must be 6 digits" required />
+                            </div>
+                            <div class="mb-3">
+                                <label for="candidateInput" class="form-label">Candidate Code (4 Digits)</label> @* Label updated *@
+                                <input class="form-control" list="candidateOptions" id="candidateInput" name="candidateCode" placeholder="Type name or enter 4-digit code..." required pattern="\d{4}" title="Select a candidate or enter a 4-digit candidate code"> @* Name changed, pattern changed *@
+                                <datalist id="candidateOptions">
+                                    @* Value is now CandidateCode (4 digits) *@
+                                    @foreach (var candidate in candidatesData)
+                                    {
+                                        <option value="@candidate.Value">@candidate.Text</option>
+                                    }
+                                </datalist>
+                                <small class="form-text text-muted">Select from the list or enter the 4-digit candidate code.</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Document Type</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="docType" id="docTypeCS" value="CS" required>
+                                    <label class="form-check-label" for="docTypeCS">Cover Sheet (CS)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="docType" id="docTypeMS" value="MS">
+                                    <label class="form-check-label" for="docTypeMS">Mark Scheme (MS)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="docType" id="docTypeProject" value="Project">
+                                    <label class="form-check-label" for="docTypeProject">Project File (-1)</label>
+                                </div>
+                            </div>
+                            <hr />
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success"><i class="bi bi-pencil-square me-1"></i> Rename Selected File</button>
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="docType" id="docTypeProject" value="Project">
-                            <label class="form-check-label" for="docTypeProject">Project File (-1)</label>
-                        </div>
-                    </div>
-                    <hr />
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-success"><i class="bi bi-pencil-square me-1"></i> Rename Selected File</button>
                     </div>
                 </form>
             }
         </div>
 
         <!-- Processed Files Column -->
-        <div class="col-lg-6">
-             <h4>Manage Processed Files</h4>
-              @if (!processedFiles.Any() && !unprocessedFiles.Any())
-             {
-                 <div id="noFilesMessageProcessed" class="alert alert-info" role="alert">No files found in your folder.</div>
-             }
-             else if (!processedFiles.Any())
-             {
-                  <div id="noProcessedFilesMessage" class="alert alert-secondary" role="alert">
-                     No processed (renamed) files found.
-                  </div>
-             }
+        <div class="col-lg-4">
+            <h4>Manage Processed Files</h4>
+            @if (!processedFiles.Any() && !unprocessedFiles.Any())
+            {
+                <div id="noFilesMessageProcessed" class="alert alert-info" role="alert">No files found in your folder.</div>
+            } else if (!processedFiles.Any())
+            {
+                <div id="noProcessedFilesMessage" class="alert alert-secondary" role="alert">
+                    No processed (renamed) files found.
+                </div>
+            }
 
-             <div class="mb-3 @(processedFiles.Any() ? "" : "d-none")" id="processedActions">
-                 <a asp-action="DownloadAllFiles" class="btn btn-outline-primary"><i class="bi bi-download me-1"></i> Download All (.zip)</a>
-                 <div class="dropdown d-inline-block ms-2">
-                   <button class="btn btn-outline-info dropdown-toggle" type="button" id="downloadSubjectDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                     <i class="bi bi-filter-circle me-1"></i> Download by Subject
-                   </button>
-                   <ul class="dropdown-menu" aria-labelledby="downloadSubjectDropdown">
-                     @foreach (SelectListItem subjectItem in subjects)
-                     {
-                         <li><a class="dropdown-item" asp-action="DownloadFilesBySubject" asp-route-subjectCode="@subjectItem.Value">@subjectItem.Text</a></li>
-                     }
-                      @if (!subjects.Any()) {
-                          <li><span class="dropdown-item disabled">No subjects available</span></li>
-                      }
-                   </ul>
-                 </div>
-             </div>
+            <div class="mb-3 @(processedFiles.Any() ? "" : "d-none")" id="processedActions">
+                <a asp-action="DownloadAllFiles" class="btn btn-outline-primary"><i class="bi bi-download me-1"></i> Download All (.zip)</a>
+                <div class="dropdown d-inline-block ms-2">
+                    <button class="btn btn-outline-info dropdown-toggle" type="button" id="downloadSubjectDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-filter-circle me-1"></i> Download by Subject
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="downloadSubjectDropdown">
+                        @foreach (SelectListItem subjectItem in subjects)
+                        {
+                            <li><a class="dropdown-item" asp-action="DownloadFilesBySubject" asp-route-subjectCode="@subjectItem.Value">@subjectItem.Text</a></li>
+                        }
+                        @if (!subjects.Any())
+                        {
+                            <li><span class="dropdown-item disabled">No subjects available</span></li>
+                        }
+                    </ul>
+                </div>
+            </div>
 
-             <ul class="list-group file-list-scrollable" style="max-height: 450px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px;" id="processedList">
-                  @* Initial population from ViewBag *@
-                  @foreach (var fileName in processedFiles)
-                  {
-                      var fileId = GenerateFileId(fileName);
-                      <li id="@fileId" class="list-group-item d-flex justify-content-between align-items-center">
-                          <span><i class="bi bi-check-circle-fill text-success me-2"></i>@fileName</span>
-                          <div>
-                              <a asp-action="GetFileInline" asp-route-fileName="@fileName" target="_blank" class="btn btn-sm btn-outline-secondary me-1 view-btn" title="View @fileName"><i class="bi bi-eye"></i></a>
-                              <a asp-action="DownloadFile" asp-route-fileName="@fileName" class="btn btn-sm btn-outline-primary me-1" title="Download @fileName"><i class="bi bi-download"></i></a>
-                              <form asp-action="DeleteFile" method="post" class="d-inline delete-form" data-file-id="@fileId" data-file-name="@fileName">
-                                   @Html.AntiForgeryToken()
-                                   <input type="hidden" name="fileName" value="@fileName" />
-                                   <button type="submit" class="btn btn-sm btn-outline-danger delete-btn" title="Delete @fileName"><i class="bi bi-trash"></i></button>
-                              </form>
-                          </div>
-                      </li>
-                  }
-             </ul>
-             @if (!processedFiles.Any() && unprocessedFiles.Any()) // Show message only if unprocessed files exist but no processed ones
-             {
-                  <div id="noProcessedFilesMessage" class="alert alert-secondary mt-3" role="alert"> @* Added ID and margin *@
-                     No processed (renamed) files found yet.
-                  </div>
-             }
+            <ul class="list-group file-list-scrollable" style="max-height: 450px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px;" id="processedList">
+                @* Initial population from ViewBag *@
+                @foreach (var fileName in processedFiles)
+                {
+                    var fileId = GenerateFileId(fileName);
+                    <li id="@fileId" class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-check-circle-fill text-success me-2"></i>@fileName</span>
+                        <div>
+                            <a asp-action="GetFileInline" asp-route-fileName="@fileName" target="_blank" class="btn btn-sm btn-outline-secondary me-1 view-btn" title="View @fileName"><i class="bi bi-eye"></i></a>
+                            <a asp-action="DownloadFile" asp-route-fileName="@fileName" class="btn btn-sm btn-outline-primary me-1" title="Download @fileName"><i class="bi bi-download"></i></a>
+                            <form asp-action="DeleteFile" method="post" class="d-inline delete-form" data-file-id="@fileId" data-file-name="@fileName">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="fileName" value="@fileName" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger delete-btn" title="Delete @fileName"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </div>
+                    </li>
+                }
+            </ul>
+            @if (!processedFiles.Any() && unprocessedFiles.Any()) // Show message only if unprocessed files exist but no processed ones
+            {
+                <div id="noProcessedFilesMessage" class="alert alert-secondary mt-3" role="alert">
+                    @* Added ID and margin *@
+                    No processed (renamed) files found yet.
+                </div>
+            }
 
         </div>
     </div>
@@ -213,7 +222,7 @@ else
                 }, duration); // Use specified duration
             }
 
-           
+
             function escapeHtml(unsafe) {
                 if (!unsafe) return '';
                 return unsafe
