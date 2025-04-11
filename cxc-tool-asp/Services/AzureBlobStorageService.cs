@@ -54,7 +54,7 @@ public class AzureBlobStorageService : IStorageService
     private async Task<BlobContainerClient?> GetContainerClientAsync(string relativePath)
     {
         string containerName;
-        if (relativePath.StartsWith("Data2/", StringComparison.OrdinalIgnoreCase) || relativePath.Equals("Data2", StringComparison.OrdinalIgnoreCase))
+        if (relativePath.StartsWith($"{_data2ContainerName}/", StringComparison.OrdinalIgnoreCase) || relativePath.Equals(_data2ContainerName, StringComparison.OrdinalIgnoreCase))
         {
             containerName = _data2ContainerName;
             if (_data2ContainerClient == null)
@@ -64,7 +64,7 @@ public class AzureBlobStorageService : IStorageService
             }
             return _data2ContainerClient;
         }
-        else if (relativePath.StartsWith("Data/", StringComparison.OrdinalIgnoreCase) || relativePath.Equals("Data", StringComparison.OrdinalIgnoreCase))
+        else if (relativePath.StartsWith($"{_dataContainerName}/", StringComparison.OrdinalIgnoreCase) || relativePath.Equals(_dataContainerName, StringComparison.OrdinalIgnoreCase))
         {
              containerName = _dataContainerName;
              if (_dataContainerClient == null)
@@ -84,16 +84,16 @@ public class AzureBlobStorageService : IStorageService
     // Helper to get the blob path (remove container prefix)
     private string GetBlobPath(string relativePath)
     {
-        if (relativePath.StartsWith("Data2/", StringComparison.OrdinalIgnoreCase))
+        if (relativePath.StartsWith($"{_data2ContainerName}/", StringComparison.OrdinalIgnoreCase))
         {
-            return relativePath.Substring("Data2/".Length);
+            return relativePath.Substring($"{_data2ContainerName}/".Length);
         }
-        if (relativePath.StartsWith("Data/", StringComparison.OrdinalIgnoreCase))
+        if (relativePath.StartsWith($"{_dataContainerName}/", StringComparison.OrdinalIgnoreCase))
         {
-            return relativePath.Substring("Data/".Length);
+            return relativePath.Substring($"{_dataContainerName}/".Length);
         }
         // If it's just "Data" or "Data2", treat it as root (empty blob path)
-        if (relativePath.Equals("Data", StringComparison.OrdinalIgnoreCase) || relativePath.Equals("Data2", StringComparison.OrdinalIgnoreCase))
+        if (relativePath.Equals(_dataContainerName, StringComparison.OrdinalIgnoreCase) || relativePath.Equals(_data2ContainerName, StringComparison.OrdinalIgnoreCase))
         {
             return string.Empty;
         }
@@ -463,4 +463,14 @@ public class AzureBlobStorageService : IStorageService
              return false;
          }
      }
+
+    public string GetDataFolderName()
+    {
+        return _dataContainerName;
+    }
+
+    public string GetPrivateDataFolderName()
+    {
+        return _data2ContainerName;
+    }
 }

@@ -27,14 +27,15 @@ public class CandidateService : ICandidateService
         HasHeaderRecord = true,
         MissingFieldFound = null,
         HeaderValidated = null,
+        PrepareHeaderForMatch = args => args.Header.ToLower().Replace(" ", "").Replace("_", "")
     };
 
     public CandidateService(IStorageService storageService, ILogger<CandidateService> logger)
     {
         _storageService = storageService;
         _logger = logger;
-        // Construct the relative path based on the current year
-        _candidateFileRelativePath = $"Data/{DateTime.Now.Year}cand.csv";
+        string DataPrefix = _storageService.GetDataFolderName();
+        _candidateFileRelativePath = $"{DataPrefix}/{DateTime.Now.Year}cand.csv";
     }
 
     // Keep this method, but it now returns the relative path
@@ -42,7 +43,7 @@ public class CandidateService : ICandidateService
 
     private async Task<List<Candidate>> ReadCandidatesFromStorageAsync()
     {
-        await _storageLock.WaitAsync();
+        // REMOVED: await _storageLock.WaitAsync(); - Lock removed from read operation
         try
         {
             _logger.LogInformation("Attempting to read candidates from storage: {Path}", _candidateFileRelativePath);
@@ -74,10 +75,9 @@ public class CandidateService : ICandidateService
             _logger.LogError(ex, "Error reading candidates from storage: {Path}", _candidateFileRelativePath);
             return new List<Candidate>();
         }
-        finally
-        {
-            _storageLock.Release();
-        }
+        // REMOVED: finally block with _storageLock.Release();
+        // REMOVED: Redundant catch block
+        // Lock is NOT released here as it wasn't acquired for pure read.
     }
 
     private async Task WriteCandidatesToStorageAsync(IEnumerable<Candidate> candidates)

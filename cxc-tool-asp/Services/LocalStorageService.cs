@@ -284,4 +284,14 @@ public class LocalStorageService : IStorageService
              return Task.FromResult(false);
          }
      }
+
+    public string GetDataFolderName()
+    {
+        return "Data";
+    }
+
+    public string GetPrivateDataFolderName()
+    {
+        return "Data2";
+    }
 }

@@ -19,7 +19,7 @@ namespace cxc_tool_asp.Services;
 public class SubjectService : ISubjectService
 {
     private readonly IStorageService _storageService;
-    private readonly string _subjectFileRelativePath = "Data2/subjects.csv"; // Relative path
+    private readonly string _subjectFileRelativePath; // Relative path
     private static readonly SemaphoreSlim _storageLock = new(1, 1); // Lock for storage access
     private readonly ILogger<SubjectService> _logger;
 
@@ -28,13 +28,15 @@ public class SubjectService : ISubjectService
         HasHeaderRecord = true,
         MissingFieldFound = null,
         HeaderValidated = null,
+        PrepareHeaderForMatch = args => args.Header.ToLower().Replace(" ", "").Replace("_", "")
     };
 
     public SubjectService(IStorageService storageService, ILogger<SubjectService> logger)
     {
         _storageService = storageService;
         _logger = logger;
-        // No initial cache load for subjects, read on demand or when modified
+        string DataPrefix = _storageService.GetPrivateDataFolderName();
+        _subjectFileRelativePath = $"{DataPrefix}/subjects.csv";
     }
 
     // Keep this method, returns relative path
@@ -42,7 +44,7 @@ public class SubjectService : ISubjectService
 
     private async Task<List<Subject>> ReadSubjectsFromStorageAsync()
     {
-        await _storageLock.WaitAsync();
+        // REMOVED: await _storageLock.WaitAsync(); - Lock removed from read operation
         try
         {
             _logger.LogInformation("Attempting to read subjects from storage: {Path}", _subjectFileRelativePath);
@@ -74,10 +76,9 @@ public class SubjectService : ISubjectService
             _logger.LogError(ex, "Error reading subjects from storage: {Path}", _subjectFileRelativePath);
             return new List<Subject>();
         }
-        finally
-        {
-            _storageLock.Release();
-        }
+        // REMOVED: finally block with _storageLock.Release();
+        // REMOVED: Redundant catch block
+        // Lock is NOT released here as it wasn't acquired for pure read.
     }
 
     private async Task WriteSubjectsToStorageAsync(IEnumerable<Subject> subjects)

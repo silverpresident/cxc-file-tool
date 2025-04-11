@@ -9,7 +9,8 @@ using System.Linq;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using System; // For StringComparison, Guid, Random, ArgumentException
-using System.Text; // For StringBuilder (if needed, maybe not)
+using System.Text;
+using System.Text.RegularExpressions; // For StringBuilder (if needed, maybe not)
 
 namespace cxc_tool_asp.Services;
 
@@ -20,8 +21,8 @@ public class UserService : IUserService
 {
     private readonly IStorageService _storageService;
     private readonly ILogger<UserService> _logger;
-    private readonly string _usersRelativePath = "Data2/users.csv"; // Relative path for storage
-    private readonly string _userDataRelativePath = "Data"; // Base relative path for user folders
+    private readonly string _usersRelativePath ; // Relative path for storage
+    private readonly string _userDataRelativePath; // Base relative path for user folders
 
     private static readonly ConcurrentDictionary<string, User> _userCache = new();
     private static readonly SemaphoreSlim _cacheLock = new(1, 1); // Lock for cache loading/saving
@@ -31,22 +32,28 @@ public class UserService : IUserService
         HasHeaderRecord = true,
         MissingFieldFound = null,
         HeaderValidated = null,
+        PrepareHeaderForMatch = args => args.Header.ToLower().Replace(" ", "").Replace("_", "")
     };
 
     public UserService(IStorageService storageService, ILogger<UserService> logger)
     {
         _storageService = storageService;
         _logger = logger;
+
+        string DataPrefix = _storageService.GetPrivateDataFolderName();
+        _usersRelativePath = $"{DataPrefix}/users.csv";
+        _userDataRelativePath = _storageService.GetDataFolderName();
+
         // Initial load into cache - fire and forget, errors logged internally
         _ = LoadUsersFromStorageAsync();
     }
 
     private async Task LoadUsersFromStorageAsync()
     {
-        await _cacheLock.WaitAsync();
+        // REMOVED: await _cacheLock.WaitAsync(); - Lock removed from read operation
         try
         {
-            // Check if cache is already populated (by another thread)
+            // Check if cache is already populated (by another thread) - Still safe without lock due to ConcurrentDictionary reads
             if (!_userCache.IsEmpty) return;
 
             _logger.LogInformation("Attempting to load users from storage: {Path}", _usersRelativePath);
@@ -77,10 +84,7 @@ public class UserService : IUserService
             _logger.LogError(ex, "Error loading users from storage: {Path}", _usersRelativePath);
             _userCache.Clear(); // Clear cache on error
         }
-        finally
-        {
-            _cacheLock.Release();
-        }
+        // Lock is NOT released here as it wasn't acquired for pure read.
     }
 
     private async Task SaveUsersToStorageAsync()
@@ -161,7 +165,7 @@ public class UserService : IUserService
                 return null;
             }
 
-            var folderName = await GenerateUniqueFolderNameAsync(); // Needs access to cache, call within lock
+            var folderName = await GenerateUniqueFolderNameAsync(userViewModel.DisplayName); // Needs access to cache, call within lock
             if (folderName == null)
             {
                  _logger.LogError("Failed to generate a unique folder name after multiple attempts.");
@@ -336,18 +340,43 @@ public class UserService : IUserService
     // --- Helper Methods ---
 
     // This needs to check storage now, not just cache/local dirs
-    private async Task<string?> GenerateUniqueFolderNameAsync(int maxAttempts = 10)
+    private async Task<string?> GenerateUniqueFolderNameAsync(string name,int maxAttempts = 10)
     {
+        string prefix = name.ToLower();
+        if (prefix.Length > 0)
+        {
+            Regex rgx = new Regex("[^a-zA-Z0-9]");
+            prefix = rgx.Replace(prefix, "");
+        }
         const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         var random = new Random();
 
+        if (string.IsNullOrEmpty(prefix))
+        {
+            prefix = new string(Enumerable.Repeat(chars, 3)
+              .Select(s => s[random.Next(s.Length)]).ToArray()); ;
+        }
         // Assumes called within _cacheLock, so cache is loaded/up-to-date
         var existingCacheFolderNames = new HashSet<string>(_userCache.Values.Select(u => u.FolderName), StringComparer.OrdinalIgnoreCase);
 
         // Check storage for existing directories (more expensive)
         var existingStorageDirs = await _storageService.ListSubdirectoriesAsync(_userDataRelativePath);
         var allExistingFolders = existingCacheFolderNames.Union(existingStorageDirs, StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!allExistingFolders.Contains(prefix))
+        {
+            return prefix;
+        }
 
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            string folderName;
+            // Try 2 letters first
+            folderName = $"{prefix}{attempt}";
+            if (!allExistingFolders.Contains(folderName))
+            {
+                return folderName;
+            }
+        }
 
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
@@ -355,7 +384,7 @@ public class UserService : IUserService
             // Try 2 letters first
             folderName = new string(Enumerable.Repeat(chars, 2)
               .Select(s => s[random.Next(s.Length)]).ToArray());
-
+            folderName = prefix + folderName;
             if (!allExistingFolders.Contains(folderName))
             {
                 return folderName;

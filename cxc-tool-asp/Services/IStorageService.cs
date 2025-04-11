@@ -101,4 +101,6 @@ public interface IStorageService
     /// <param name="overwrite">Whether to overwrite the destination if it exists.</param>
     /// <returns>True if successful, false otherwise.</returns>
     Task<bool> CopyLocalFileToStorageAsync(string localSourcePath, string destinationRelativePath, bool overwrite = false);
+    string GetDataFolderName();
+    string GetPrivateDataFolderName();
 }
