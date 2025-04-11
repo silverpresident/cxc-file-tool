@@ -7,35 +7,44 @@ This document stores contextual information, design decisions, and learnings rel
 *   **Goal:** Migrate a PHP-based CXC SBA file management tool to ASP.NET Core MVC (.NET 9 Preview).
 *   **Core Functionality:** User authentication, CSV-based data management (Users, Candidates, Subjects), file upload, file renaming based on CXC convention, file download (individual/zip).
 *   **Target Users:** Teachers/Administrators managing SBA submissions.
-*   **Key Constraint:** No traditional database; all data persistence uses CSV files.
+*   **Storage:** Uses `IStorageService` abstraction to support Local File System (Development) or Azure Blob Storage (Production), configured via `appsettings.json`.
 
 ## Design Decisions & Rationale
 
-*   **Framework Choice (.NET 9 Preview):** Chosen as per user request, despite .NET 8 being the current LTS. This implies acceptance of potential preview version instability or changes.
-*   **CSV Data Storage:** A core requirement. This necessitates careful file handling, locking (`SemaphoreSlim`) to prevent race conditions, and potentially less efficient querying compared to a database. `CsvHelper` library chosen for its robustness.
-*   **User Data Separation (`Data2` folder):** The `users.csv` file is stored separately from the main `Data` folder to protect it from the Admin's "Manage All Files" delete capability, which operates on the `Data` folder and its subdirectories.
-*   **Service Lifetime (Singleton):** Services managing CSV files (`UserService`, `CandidateService`, `SubjectService`, `FileService`) are registered as Singletons. This is suitable because they manage shared file resources and contain state (like file locks or caches - `UserService`). Using Scoped or Transient could lead to issues with file locking or inconsistent caching.
-*   **Password Hashing:** `BCrypt.Net-Next` used for secure password hashing.
-*   **File Naming Convention:** Implemented as `{RegNo(10)}{SubjectCode(8)}{DocId}{Extension}`. `DocId` is "CS", "MS", or "-N" for projects. `FileService.RenameFileAsync` handles this.
-*   **Admin vs. User Roles:** Simple role system based on `User.IsAdmin` boolean flag, translated into a "Admin" or "User" role claim during login for use with `[Authorize(Roles = "Admin")]`.
-*   **Unique Folder Names (`UserService.GenerateUniqueFolderNameAsync`):** A simple 2-letter or 2-letter + 1-digit scheme is used. Collision checking includes existing user records *and* existing directories in `/Data` to handle potential orphaned folders. Max attempts limit prevents infinite loops in unlikely scenarios.
-*   **CSV Import Mapping (`CandidateImportMap`, `SubjectImportMap`):** Flexible mapping using `CsvHelper ClassMap` and `PrepareHeaderForMatch` allows importing CSVs with slightly different header names (case-insensitive, ignoring spaces/\_).
-*   **MIME Types:** `MimeTypeMapOfficial` library used for setting correct content types during file downloads.
+*   **Framework Choice (.NET 9 Preview):** Chosen as per user request.
+*   **Storage Abstraction (`IStorageService`):** Introduced to decouple services from the underlying storage mechanism (Local vs. Azure). Implementations (`LocalStorageService`, `AzureBlobStorageService`) handle the specifics. Registered conditionally in `Program.cs` based on `StorageSettings:StorageType`.
+*   **CSV Data Storage:** A core requirement. Handled via `IStorageService`. `CsvHelper` used for parsing/writing.
+*   **Relative Paths:** Services operate using relative paths (e.g., "Data/UserFolder/file.txt", "Data2/subjects.csv"). `IStorageService` implementations map these to physical paths or blob paths/containers.
+*   **Data/Data2 Separation:** `users.csv` and `subjects.csv` use the "Data2" path prefix (mapped to `data2` container in Azure or `Data2/` locally) to protect them from admin bulk file operations targeting the "Data" path prefix (mapped to `data` container or `Data/` locally).
+*   **Service Lifetime (Singleton):** Services (`UserService`, `CandidateService`, `SubjectService`, `IStorageService` implementations) registered as Singletons. Suitable for shared resources like files/blob clients and managing state (locks/caches).
+*   **Password Hashing:** `BCrypt.Net-Next`.
+*   **Subject Codes (8-Digit):** The application now consistently uses 8-digit subject codes based on user feedback, aligning with the source PHP data. Model validation, file naming logic (`RenameController`, `FileService`), filtering logic (`RenameController`), and the initial `subjects.csv` were updated.
+*   **File Naming Convention:** Implemented as `{RegNo(10)}{SubjectCode(8)}{DocId}{Extension}`. `RegNo` is constructed from `CentreNo(6) + CandidateCode(4)`. `DocId` is "CS", "MS", or "-1".
+*   **Concurrency Locking (`SemaphoreSlim`):** Locks are used *only* for write operations (Add, Update, Delete, Import, Save) in CSV services (`UserService`, `CandidateService`, `SubjectService`) to prevent file corruption. Read operations are lock-free to prevent hangs, accepting a minor risk of read errors during concurrent writes. `UserService` also locks around cache modifications during writes.
+*   **AJAX Enhancements (Upload/Rename):** Implemented using `fetch`/`XMLHttpRequest` for file uploads (multiple, drag-drop, progress) and rename/delete operations to provide a smoother UX without full page reloads. Controllers return JSON for AJAX requests.
+*   **Initial Admin Creation:** Handled via `--create-admin` command-line argument in `Program.cs`.
+*   **Subject Defaults Import:** `AdminController.ImportDefaultSubjects` action added. Uses `IStorageService.CopyLocalFileToStorageAsync` to copy the deployed `Data2/subjects.csv` to the configured storage (local or Azure).
+*   **Candidate Import Mapping:** `CandidateImportMap` updated for flexible header names (`partyname`, `current_cxc_candidate_no`, etc.) and desired column order.
+*   **Inline File View:** `RenameController.GetFileInline` action added to serve files with `Content-Disposition: inline`.
 
 ## Learnings & Challenges
 
-*   **.NET 9 Preview Templates:** The `--use-program-main` flag did not create a separate `Startup.cs` as expected with older templates; configuration remained within `Program.cs` using `WebApplicationBuilder`. Adapted the plan accordingly.
-*   **Required Properties (`required` keyword):** Need careful initialization in constructors or object initializers, especially when creating view models for 'Add' actions (e.g., `UserViewModel.DisplayName`, `Subject.Level`).
-*   **Tag Helper Attribute Syntax:** Conditional rendering of HTML attributes like `readonly` requires specific syntax (e.g., `readonly="@(isEditMode ? "readonly" : null)"`) rather than embedding C# directly in the attribute area.
-*   **Namespace Discrepancies:** Initial confusion over the correct namespace for the `MimeTypeMapOfficial` package (`MimeTypes` vs. `MimeTypeMap`). Corrected to `using MimeTypeMap;`.
-*   **CSV Concurrency:** Using `SemaphoreSlim` provides basic locking but might become a bottleneck under high load (unlikely for this application type). A database would handle concurrency more robustly.
-*   **Admin File Deletion Scope:** The requirement for Admins to delete *all* files in `/Data` necessitated moving `users.csv` to `/Data2`. This adds slight complexity but meets the safety requirement.
+*   **.NET 9 Preview Templates:** `--use-program-main` flag behavior differs from older templates.
+*   **Required Properties (`required`):** Need careful initialization.
+*   **Tag Helper Attribute Syntax:** Conditional attributes require specific syntax (`attribute="@(condition ? value : null)"`).
+*   **Namespace Discrepancies:** Corrected `MimeTypeMapOfficial` namespace to `MimeTypes`.
+*   **Concurrency Issues:** Initial locking strategy caused hangs; revised to lock only write operations on CSV files. Read operations are now lock-free.
+*   **Refactoring Complexity:** Introducing `IStorageService` required careful refactoring across multiple services and controllers. `replace_in_file` struggled with large changes, necessitating `write_to_file` fallback.
+*   **AJAX Implementation:** Requires careful handling of form data, anti-forgery tokens, progress events (XHR), and dynamic UI updates in JavaScript. Controller actions need modification to return JSON.
+*   **Subject Code Discrepancy:** Initial implementation used 6-digit codes based on convention, but source data used 8 digits. Refactored to use 8 digits consistently.
 
 ## Future Development Notes for AI
 
-*   **Rename Page UI:** The "Processed Files" section needs implementation. Consider using AJAX to update the file list after renaming without a full page refresh. Displaying both original and renamed files might be useful temporarily.
-*   **Error Handling:** Implement more specific error handling and user-friendly messages, possibly using a dedicated error logging framework.
-*   **Initial Admin User:** Add a setup step or command-line utility to create the first admin user, as manual CSV editing is error-prone.
-*   **File Validation:** Add server-side validation for uploaded file types and sizes in `UploadController`.
-*   **Refactoring:** Consider extracting common CRUD logic from `AdminController` into generic helper methods or base classes if complexity increases.
-*   **Testing:** Prioritize testing for CSV services (`UserService`, `CandidateService`, `SubjectService`) and `FileService` due to file I/O and locking. Test edge cases for renaming and CSV imports.
+*   **Rename Page UI:** Implement dynamic updates for the "Processed Files" list fully.
+*   **Error Handling:** Improve specificity and user feedback. Implement global handler.
+*   **File Validation:** Add client-side validation.
+*   **Admin User File Deletion:** Decide and implement policy for deleting user files when deleting a user account.
+*   **Logging:** Configure structured logging (e.g., Serilog).
+*   **Testing:** Add unit/integration tests, especially for storage interactions and CSV logic.
+*   **Configuration:** Externalize more settings (e.g., max file size, allowed extensions).
+*   **Database Migration:** Still a consideration for future scalability.
