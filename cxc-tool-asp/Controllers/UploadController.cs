@@ -21,9 +21,8 @@ public class UploadController : Controller
     private readonly string _userDataRelativePath; // Base relative path for user folders
 
     // Configuration for file validation
-    private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
-    private static readonly string[] AllowedExtensions = { ".pdf", ".docx", ".jpg", ".jpeg", ".png" };
-
+    private const long MaxFileSize = 20 * 1024 * 1024; // 20 MB
+    private static readonly string[] AllowedExtensions = { ".pdf", ".docx", ".xlsx", ".jpg", ".jpeg", ".png", ".zip", ".mp3", ".mp4", ".m4a", ".m4v" };
 
     public UploadController(IStorageService storageService, ILogger<UploadController> logger) // Updated constructor
     {

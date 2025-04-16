@@ -22,8 +22,8 @@
                     <label for="fileInput" class="btn btn-secondary" id="fileInputLabel"> @* Added ID to label *@
                          <i class="bi bi-folder2-open me-1"></i> Choose Files...
                     </label>
-                    <input type="file" id="fileInput" name="files" class="d-none" accept=".pdf,.docx,.jpg,.jpeg,.png" multiple /> @* Name matches controller param, multiple added *@
-                    <div id="fileHelp" class="form-text mt-2">Allowed types: PDF, DOCX, JPG, PNG. Max size: 10 MB per file.</div>
+                    <input type="file" id="fileInput" name="files" class="d-none" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.zip,.mp3,.mp4,.m4a,.m4v" multiple /> @* Name matches controller param, multiple added *@
+                    <div id="fileHelp" class="form-text mt-2">Allowed types: PDF, DOCX, XLSX, JPG, PNG, ZIP, MP3, MP4, M4A, M4V. Max size: 20 MB per file.</div>
                 </div>
                 <button type="submit" class="btn btn-primary d-none" id="fallbackSubmitBtn"><i class="bi bi-cloud-upload me-1"></i> Upload Selected Files (Fallback)</button> @* Text updated *@
             </form>
