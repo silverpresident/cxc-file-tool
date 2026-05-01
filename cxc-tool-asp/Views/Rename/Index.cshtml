@@ -344,7 +344,8 @@
                             removeFileFromList(unprocessedList, oldFileElement.id);
                         }
                         addFileToProcessedList(data.newFileName);
-                        renameForm.reset();
+                        //renameForm.reset();
+                        $('input[type="radio"]').prop('checked', false);
                     }
                 })
                 .catch(error => {

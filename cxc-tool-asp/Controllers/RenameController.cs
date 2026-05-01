@@ -82,7 +82,7 @@ public class RenameController : Controller
         ViewBag.SubjectsList = new SelectList(subjects.OrderBy(s => s.Name), "CxcSubjectCode", "Name");
         ViewBag.CandidatesData = candidates
             .OrderBy(c => c.Name)
-            .Select(c => new { Value = c.CandidateCode, Text = $"{c.Name} ({c.CxcRegistrationNo})" })
+            .Select(c => new CandidateDatalistItem { Value = c.CandidateCode, Text = $"{c.Name} ({c.CxcRegistrationNo})" })
             .ToList();
 
         var processedFiles = new List<string>();
