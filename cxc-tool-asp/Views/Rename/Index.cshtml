@@ -200,6 +200,40 @@
             const processedActionsDiv = document.getElementById('processedActions');
             const antiforgeryToken = '@Xsrf.GetAndStoreTokens(Context).RequestToken';
 
+            // --- Client-side Caching for Form Fields ---
+            if (renameForm) {
+                const subjectCodeInput = document.getElementById('subjectCode');
+                const centreNumberInput = document.getElementById('centreNumber');
+                const candidateInput = document.getElementById('candidateInput');
+
+                const restoreLastSelection = () => {
+                    const savedSubject = localStorage.getItem('renameForm_subject');
+                    if (savedSubject && subjectCodeInput) subjectCodeInput.value = savedSubject;
+
+                    const savedCentre = localStorage.getItem('renameForm_centre');
+                    if (savedCentre && centreNumberInput) centreNumberInput.value = savedCentre;
+
+                    const savedCandidate = localStorage.getItem('renameForm_candidate');
+                    if (savedCandidate && candidateInput) candidateInput.value = savedCandidate;
+                };
+
+                const cacheSelection = () => {
+                    if (subjectCodeInput) localStorage.setItem('renameForm_subject', subjectCodeInput.value);
+                    if (centreNumberInput) localStorage.setItem('renameForm_centre', centreNumberInput.value);
+                    if (candidateInput) localStorage.setItem('renameForm_candidate', candidateInput.value);
+                };
+
+                // Restore on load
+                restoreLastSelection();
+
+                // Attach listeners to cache changes
+                subjectCodeInput?.addEventListener('change', cacheSelection);
+                centreNumberInput?.addEventListener('input', cacheSelection);
+                candidateInput?.addEventListener('input', cacheSelection);
+            }
+            // --- End Caching Logic ---
+
+
             // --- Helper Functions ---
             function displayMessage(message, isSuccess, duration = 30000) { // Default 30s
                 if (isSuccess && duration !== 30000) { // Override for success if needed
