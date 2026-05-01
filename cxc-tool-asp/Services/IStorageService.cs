@@ -83,6 +83,13 @@ public interface IStorageService
     /// <param name="relativeDirectoryPath">The relative path of the directory to delete.</param>
     /// <returns>True if successful or directory didn't exist, false on error.</returns>
     Task<bool> DeleteDirectoryAsync(string relativeDirectoryPath);
+    
+    /// <summary>
+    /// Deletes all files within a specified relative directory path. Non-recursive.
+    /// </summary>
+    /// <param name="relativeDirectoryPath">The relative path of the directory.</param>
+    /// <returns>A tuple indicating success, the number of deleted files, and the number of failures.</returns>
+    Task<(bool Success, int DeletedCount, int ErrorCount)> DeleteAllFilesAsync(string relativeDirectoryPath);
 
     /// <summary>
     /// Gets the public URL for a file if applicable (mainly for Blob Storage).

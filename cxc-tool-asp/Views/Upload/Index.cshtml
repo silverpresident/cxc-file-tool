@@ -55,7 +55,18 @@
 
     <!-- Uploaded Files List Column -->
     <div class="col-md-6">
-        <h4>Your Uploaded Files</h4>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4>Your Uploaded Files</h4>
+            @if (userFiles.Any())
+            {
+                <form asp-action="DeleteAllFiles" method="post" id="deleteAllForm">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="bi bi-trash-fill me-1"></i> Delete All
+                    </button>
+                </form>
+            }
+        </div>
         <ul class="list-group" id="fileList">
             @if (!userFiles.Any())
             {
@@ -95,6 +106,7 @@
         const fallbackForm = document.getElementById('uploadFormFallback');
         const fileInputLabel = document.getElementById('fileInputLabel'); // Get label
         const antiforgeryToken = '@Xsrf.GetAndStoreTokens(Context).RequestToken'; // Get token
+        const deleteAllForm = document.getElementById('deleteAllForm');
 
         // --- Helper Functions ---
         function displayMessage(message, isSuccess) {
@@ -162,6 +174,27 @@
                  fileList.appendChild(li);
             }
         }
+        
+        function clearFileList() {
+            fileList.innerHTML = ''; // Clear all items
+            if (!document.getElementById('noFilesMessage')) {
+                const li = document.createElement('li');
+                li.id = 'noFilesMessage';
+                li.className = 'list-group-item text-muted';
+                li.textContent = "You haven't uploaded any files yet.";
+                fileList.appendChild(li);
+            }
+            // Hide the 'Delete All' button itself
+            if (deleteAllForm) {
+                const parentDiv = deleteAllForm.parentElement;
+                if (parentDiv) {
+                    parentDiv.style.display = 'none'; 
+                } else {
+                    deleteAllForm.style.display = 'none';
+                }
+            }
+        }
+
 
         // --- Progress Bar Handling (Modified for multiple files) ---
         function createOrUpdateProgressBar(fileIdentifier, percentage) {
@@ -304,7 +337,7 @@
             xhr.send(formData);
         }
 
-        // --- AJAX Delete ---
+        // --- AJAX Delete -- -
         function handleDeleteSubmit(event) {
             event.preventDefault();
             const form = event.target;
@@ -342,11 +375,52 @@
                 displayMessage(error.message || 'An error occurred while deleting the file.', false);
             });
         }
+        
+        function handleDeleteAllSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+
+            if (!confirm('Are you sure you want to delete ALL your uploaded files? This action cannot be undone.')) {
+                return;
+            }
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': antiforgeryToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new FormData(form)
+            })
+            .then(response => {
+                if (!response.ok) {
+                     return response.json().catch(() => ({ message: `HTTP error! Status: ${response.status}` })).then(errorData => {
+                         throw new Error(errorData?.message || `HTTP error! Status: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayMessage(data.message, data.success);
+                if (data.success) {
+                    clearFileList();
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting all files:', error);
+                displayMessage(error.message || 'An error occurred while deleting all files.', false);
+            });
+        }
+
 
         // Attach delete handlers to existing forms on page load
         document.querySelectorAll('.delete-form').forEach(form => {
             form.addEventListener('submit', handleDeleteSubmit);
         });
+        
+        if (deleteAllForm) {
+            deleteAllForm.addEventListener('submit', handleDeleteAllSubmit);
+        }
 
         // Prevent fallback form submission if JS is enabled
         fallbackForm.addEventListener('submit', (e) => {

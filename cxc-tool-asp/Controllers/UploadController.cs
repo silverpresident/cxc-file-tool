@@ -221,4 +221,42 @@ public class UploadController : Controller
         }
          return RedirectToAction(nameof(Index));
     }
+    
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAllFiles()
+    {
+        bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+        var userFolderName = User.FindFirstValue("FolderName");
+        string message;
+
+        if (string.IsNullOrEmpty(userFolderName))
+        {
+            message = "User folder information not found.";
+            return isAjax ? Json(new { success = false, message }) : Unauthorized(message);
+        }
+
+        var relativeFolderPath = GetUserFolderRelativePath(userFolderName);
+        var (success, deletedCount, errorCount) = await _storageService.DeleteAllFilesAsync(relativeFolderPath);
+
+        if (success)
+        {
+            message = $"Successfully deleted {deletedCount} file(s).";
+            if (errorCount > 0)
+            {
+                message += $" Failed to delete {errorCount} file(s).";
+            }
+            _logger.LogInformation("User '{UserName}' deleted all files in folder '{UserFolder}'. Deleted: {DeletedCount}, Failed: {ErrorCount}", User.Identity?.Name, userFolderName, deletedCount, errorCount);
+            if(isAjax) return Json(new { success = true, message });
+            TempData["UploadSuccess"] = message;
+        }
+        else
+        {
+            message = "An error occurred while deleting files.";
+             _logger.LogError("User '{UserName}' failed to delete all files in folder '{UserFolder}'.", User.Identity?.Name, userFolderName);
+            if(isAjax) return Json(new { success = false, message });
+            TempData["UploadError"] = message;
+        }
+        return RedirectToAction(nameof(Index));
+    }
 }

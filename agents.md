@@ -1,7 +1,7 @@
 # Project Tech Stack and Rules - CXC File Tools
 
 ## Tech Stack
-- **Framework**: .NET 9.0, ASP.NET Core MVC
+- **Framework**: .NET 10, ASP.NET Core MVC
 - **Language**: C# 12
 - **Database**: CSV files
 - **Authentication**: Simple custom
@@ -10,7 +10,7 @@
   - jQuery 3.7+
   - Bootstrap Icons
 - **Development Tools**:
-  - Visual Studio 2022+
+  - Visual Studio 2026+
   - Visual Studio Code with C# Dev Kit
   - Azure CLI/PowerShell
   - Terraform for IaC

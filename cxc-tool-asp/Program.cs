@@ -150,7 +150,6 @@ public class Program
         }
 
         app.UseHttpsRedirection();
-        app.UseStaticFiles(); // Explicitly add UseStaticFiles
 
         app.UseRouting();
 
@@ -158,9 +157,7 @@ public class Program
         app.UseAuthorization();
 
         app.MapStaticAssets();
-        app.MapControllerRoute(
-            name: "default",
-            pattern: "{controller=Home}/{action=Index}/{id?}")
+        app.MapDefaultControllerRoute()
             .WithStaticAssets();
 
         app.Run();

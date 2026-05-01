@@ -144,6 +144,40 @@ public class LocalStorageService : IStorageService
             return Task.FromResult(false);
         }
     }
+    
+    public Task<(bool Success, int DeletedCount, int ErrorCount)> DeleteAllFilesAsync(string relativeDirectoryPath)
+    {
+        int deletedCount = 0;
+        int errorCount = 0;
+        try
+        {
+            var fullPath = GetFullPath(relativeDirectoryPath);
+            if (Directory.Exists(fullPath))
+            {
+                var files = Directory.GetFiles(fullPath);
+                foreach (var file in files)
+                {
+                    try
+                    {
+                        File.Delete(file);
+                        deletedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error deleting file: {File}", file);
+                        errorCount++;
+                    }
+                }
+                _logger.LogInformation("Deleted {DeletedCount} files from {FullPath}. Errors: {ErrorCount}", deletedCount, fullPath, errorCount);
+            }
+            return Task.FromResult((errorCount == 0, deletedCount, errorCount));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting all files in directory: {RelativeDirectoryPath}", relativeDirectoryPath);
+            return Task.FromResult((false, deletedCount, errorCount));
+        }
+    }
 
     public Task<bool> FileExistsAsync(string relativePath)
     {
@@ -275,7 +309,7 @@ public class LocalStorageService : IStorageService
              if(!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
 
              File.Copy(localSourcePath, destinationFullPath, overwrite);
-             _logger.LogDebug("Copied local file from {SourcePath} to {DestinationPath}", localSourcePath, destinationFullPath);
+             _logger.LogDebug("Copied local file from {SourcePath} to {DestinationPath}", sourceFullPath, destinationFullPath);
              return Task.FromResult(true);
          }
          catch (Exception ex)

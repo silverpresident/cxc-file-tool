@@ -385,4 +385,51 @@ public class RenameController : Controller
         }
          return RedirectToAction(nameof(Index));
     }
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAllProcessedFiles()
+    {
+        bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+        var userFolderName = User.FindFirstValue("FolderName");
+        string message;
+
+        if (string.IsNullOrEmpty(userFolderName))
+        {
+            message = "User folder information not found.";
+            return isAjax ? Json(new { success = false, message }) : Unauthorized(message);
+        }
+
+        var relativeFolderPath = GetUserFolderRelativePath(userFolderName);
+        var allFiles = await _storageService.ListFilesAsync(relativeFolderPath);
+        var processedFileRegex = new Regex(@"^\d{10}\d{8}(CS|MS|-\d+)\..+$");
+        var filesToDelete = allFiles.Where(f => processedFileRegex.IsMatch(f)).ToList();
+
+        if (!filesToDelete.Any())
+        {
+            message = "No processed files found to delete.";
+            return isAjax ? Json(new { success = true, message }) : RedirectToAction(nameof(Index));
+        }
+
+        int deletedCount = 0;
+        int errorCount = 0;
+
+        foreach (var fileName in filesToDelete)
+        {
+            var relativePath = GetUserFileRelativePath(userFolderName, fileName);
+            var success = await _storageService.DeleteFileAsync(relativePath);
+            if (success) deletedCount++;
+            else errorCount++;
+        }
+
+        if (errorCount == 0)
+        {
+            message = $"Successfully deleted {deletedCount} processed file(s).";
+            return isAjax ? Json(new { success = true, message }) : RedirectToAction(nameof(Index));
+        }
+        else
+        {
+            message = $"Deleted {deletedCount} file(s), but failed to delete {errorCount} file(s).";
+            return isAjax ? Json(new { success = false, message }) : RedirectToAction(nameof(Index));
+        }
+    }
 }
