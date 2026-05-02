@@ -21,9 +21,9 @@
 } else
 {
 
-    <div class="row">
+    <div class="row-fluid">
         <!-- Renaming Section Column -->
-        <div class="col-lg-8 mb-4">
+        <div class="col-lg-7 mb-4">
             <h4>Rename Unprocessed File</h4>
             @if (!unprocessedFiles.Any())
             {
@@ -124,7 +124,7 @@
         </div>
 
         <!-- Processed Files Column -->
-        <div class="col-lg-4">
+        <div class="col-lg-5">
             <h4>Manage Processed Files</h4>
             @if (!processedFiles.Any() && !unprocessedFiles.Any())
             {

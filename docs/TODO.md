@@ -17,9 +17,9 @@ This list tracks pending tasks and potential improvements for the application.
     *   Add loading indicators for potentially long-running operations (like zip creation, large CSV uploads/imports, listing all admin files).
     *   Refine success/error message display (currently prepended, consider dedicated area or toasts).
 *   [ ] **Error Handling:**
-    *   Implement more specific exception handling and user-friendly messages in controllers and services.
-    *   Configure global exception handling middleware in `Program.cs` to provide user-friendly error pages for unhandled exceptions.
-    *   Improve logging detail and structure (consider structured logging like Serilog).
+    *   [ ] Implement more specific exception handling and user-friendly messages in controllers and services.
+    *   [x] ~~Configure global exception handling middleware in `Program.cs` to provide user-friendly error pages for unhandled exceptions.~~ (Done via `UseExceptionHandler("/Home/Error")` outside Development)
+    *   [ ] Improve logging detail and structure (consider structured logging like Serilog).
 *   [x] ~~**File Validation:** Add server-side validation in `UploadController` for allowed file types (e.g., PDF, DOCX, common image types) and maximum file size.~~ (Done)
 *   [ ] **Admin User File Deletion:** Decide if deleting a user should also delete their associated storage folder (`IStorageService.DeleteDirectoryAsync`). Implement if required. Currently, only the user record is deleted.
 *   [ ] **Client-Side Validation:** Add client-side validation for file type/size on the Upload page to provide faster feedback.
