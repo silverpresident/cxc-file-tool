@@ -7,6 +7,13 @@
 
 <p>This page lists all files currently stored in user folders within the <code>Data</code> directory.</p>
 
+<div class="mb-3 d-flex flex-wrap gap-2">
+    <form asp-action="DeleteAllFiles" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete ALL files in every user folder? This cannot be undone.');">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-danger" @(Model.Any() ? null : "disabled")><i class="bi bi-trash3-fill me-1"></i> Delete All</button>
+    </form>
+</div>
+
 @if (!Model.Any())
 {
     <div class="alert alert-info" role="alert">

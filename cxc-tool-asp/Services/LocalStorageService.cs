@@ -309,7 +309,7 @@ public class LocalStorageService : IStorageService
              if(!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
 
              File.Copy(localSourcePath, destinationFullPath, overwrite);
-             _logger.LogDebug("Copied local file from {SourcePath} to {DestinationPath}", sourceFullPath, destinationFullPath);
+             _logger.LogDebug("Copied local file from {SourcePath} to {DestinationPath}", localSourcePath, destinationFullPath);
              return Task.FromResult(true);
          }
          catch (Exception ex)

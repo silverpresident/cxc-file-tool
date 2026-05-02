@@ -480,6 +480,55 @@ public class AdminController : Controller
         return RedirectToAction(nameof(Files));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAllFiles()
+    {
+        var deletedCount = 0;
+        var errorCount = 0;
+
+        try
+        {
+            var userFolders = await _storageService.ListSubdirectoriesAsync(_userDataRelativePath);
+            foreach (var userFolder in userFolders)
+            {
+                var relativeFolderPath = GetUserFolderRelativePath(userFolder);
+                var result = await _storageService.DeleteAllFilesAsync(relativeFolderPath);
+
+                deletedCount += result.DeletedCount;
+                errorCount += result.ErrorCount;
+
+                if (!result.Success && result.ErrorCount == 0)
+                {
+                    errorCount++;
+                }
+            }
+
+            if (errorCount == 0)
+            {
+                TempData["FileMessage"] = deletedCount == 0
+                    ? "No files were found to delete."
+                    : $"Deleted {deletedCount} file(s).";
+            }
+            else
+            {
+                TempData["FileError"] = $"Deleted {deletedCount} file(s), but failed to delete {errorCount} file(s).";
+            }
+
+            _logger.LogInformation(
+                "Admin deleted all files. Deleted: {DeletedCount}, Failed: {ErrorCount}",
+                deletedCount,
+                errorCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting all files from storage directory {DataPath}", _userDataRelativePath);
+            TempData["FileError"] = "Error deleting all files.";
+        }
+
+        return RedirectToAction(nameof(Files));
+    }
+
     [HttpGet]
     public async Task<IActionResult> DownloadFile(string userFolder, string fileName)
     {

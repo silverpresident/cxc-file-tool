@@ -401,6 +401,54 @@ public class AzureBlobStorageService : IStorageService
         }
     }
 
+    public async Task<(bool Success, int DeletedCount, int ErrorCount)> DeleteAllFilesAsync(string relativeDirectoryPath)
+    {
+        var deletedCount = 0;
+        var errorCount = 0;
+
+        try
+        {
+            var containerClient = await GetContainerClientAsync(relativeDirectoryPath);
+            if (containerClient == null) return (false, deletedCount, 1);
+
+            var directoryBlobPrefix = GetBlobPath(relativeDirectoryPath);
+            if (!string.IsNullOrEmpty(directoryBlobPrefix) && !directoryBlobPrefix.EndsWith('/'))
+            {
+                directoryBlobPrefix += "/";
+            }
+
+            await foreach (BlobItem blobItem in containerClient.GetBlobsAsync(prefix: directoryBlobPrefix))
+            {
+                var fileName = blobItem.Name.Substring(directoryBlobPrefix.Length);
+                if (string.IsNullOrEmpty(fileName) || fileName.Contains('/'))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var result = await containerClient.DeleteBlobIfExistsAsync(blobItem.Name);
+                    if (result.Value)
+                    {
+                        deletedCount++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errorCount++;
+                    _logger.LogError(ex, "Error deleting blob while deleting all files: {Container}/{BlobPath}", containerClient.Name, blobItem.Name);
+                }
+            }
+
+            return (errorCount == 0, deletedCount, errorCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting all files in blob directory: {RelativeDirectoryPath}", relativeDirectoryPath);
+            return (false, deletedCount, errorCount + 1);
+        }
+    }
+
     public string? GetFileUrl(string relativePath)
     {
         // For private containers, we'd need to generate a SAS token URL.
