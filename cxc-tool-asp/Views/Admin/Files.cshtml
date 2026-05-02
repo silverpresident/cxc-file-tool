@@ -37,10 +37,8 @@ else
                     <td><code>@Html.DisplayFor(modelItem => fileInfo.UserFolder)</code></td>
                     <td>@Html.DisplayFor(modelItem => fileInfo.FileName)</td>
                     <td>
-                        <!-- TODO: Implement Download File action -->
                         <a asp-action="DownloadFile" asp-route-userFolder="@fileInfo.UserFolder" asp-route-fileName="@fileInfo.FileName" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-download"></i> Download</a>
 
-                        <!-- TODO: Implement Delete File action using POST -->
                         <form asp-action="DeleteFile" asp-route-userFolder="@fileInfo.UserFolder" asp-route-fileName="@fileInfo.FileName" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete file @fileInfo.FileName from folder @fileInfo.UserFolder?');">
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash-fill"></i> Delete</button>
